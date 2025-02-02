@@ -21,7 +21,7 @@ void nn_tests() { gradient_flow_tests(); }
  */
 static void gradient_flow_tests() {
   // Create a neural network
-  NeuralNetwork<double> model{
+  NeuralNetwork<double, LOSS::MSE> model{
       std::make_unique<FullyConnectedLayer<double>>(1, 3),
       std::make_unique<ReluLayer<double>>(3),
       std::make_unique<FullyConnectedLayer<double>>(3, 8),
@@ -37,16 +37,16 @@ static void gradient_flow_tests() {
     double x = randomNumber(0.0, 1.0);
     double y = 5 * x * x + 2 * x + 1;
 
-    model.forward(Vector<double>{x}, y);
+    model.forwardOne(Vector<double>{x}, Vector<double>{y});
     // this must be the derivative of the loss function with respect to x
     double gradient = model.getGradient();
 
     // Compute l(x+eps)
-    double resP = model.forward(Vector<double>{x + eps}, y);
+    double resP = model.predict(Vector<double>{x + eps})(0);
     resP = (resP - y) * (resP - y);
 
     // Compute l(x-eps)
-    double resM = model.forward(Vector<double>{x - eps}, y);
+    double resM = model.predict(Vector<double>{x - eps})(0);
     resM = (resM - y) * (resM - y);
 
     check_num_equality(gradient, (resP - resM) / (2 * eps), eps,

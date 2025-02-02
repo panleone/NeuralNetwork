@@ -22,7 +22,7 @@ int main() {
     exit(1);
   }
 
-  NeuralNetwork<float> model{
+  NeuralNetwork<float, LOSS::MSE> model{
       std::make_unique<FullyConnectedLayer<float>>(1, 10),
       std::make_unique<ReluLayer<float>>(10),
       std::make_unique<FullyConnectedLayer<float>>(10, 10),
@@ -32,23 +32,19 @@ int main() {
 
   DataLoader<float> loader;
   for (int i = 0; i < 10000; i++) {
-    float x = static_cast<float>(i) / 10000.0f;
-    loader.push(Vector<float>{x}, x * x + 5.0f * x + 4.0f);
+    float x = static_cast<float>(i) / 5000.0f;
+    loader.push(Vector<float>{x}, Vector<float>{x * x + 5.0f * x + 4.0f});
   }
-  size_t epoch = 10;
+  size_t epoch = 50;
   size_t batchSize = 100;
   float alpha = 0.01f;
   for (size_t i = 0; i < epoch; i++) {
-    size_t j = 0;
-    for (auto &[x, y] : loader.randomIter()) {
-      j += 1;
-      auto res = model.forward(x.clone(), y);
-      std::cout << res << " " << y << std::endl;
-      if (j == batchSize) {
-        model.backward(alpha);
-        j = 0;
-      }
-    }
+    loader.randomIter(batchSize, [&](auto batch) {
+      auto loss = model.forwardBatch(batch);
+      model.backward(alpha);
+      std::cout << "Batch handled, average loss: " << loss << std::endl;
+    });
+
     if (i > 0 && i % 20 == 0) {
       alpha /= 2.0f;
     }

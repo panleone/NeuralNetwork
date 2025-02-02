@@ -5,19 +5,12 @@
 #include <memory>
 
 #include "layer.h"
+#include "optimizer.h"
+#include <span>
 
-template <typename T> T lossFunction(const T &f, const T &y) {
-  return (f - y) * (f - y);
-}
-
-template <typename T> T lossFunctionDerivative(const T &f, const T &y) {
-  return 2 * (f - y);
-}
-
-template <typename T> class NeuralNetwork {
+template <typename T, LOSS LossType> class NeuralNetwork {
 private:
   T accumulatedGradient = static_cast<T>(0.0);
-  T accumulatedLoss = static_cast<T>(0.0);
   size_t batchedElements = 0;
 
 public:
@@ -25,38 +18,49 @@ public:
     initialize_layers(std::forward<Layers &&>(layers)...);
   }
 
-  T forward(Vector<T> input, const T &out) {
-    // input is processed layer by layer
+  Vector<T> predict(Vector<T> input) {
     std::for_each(nnLayers.begin(), nnLayers.end(),
                   [&](auto &layer) { layer->forwardStep(input); });
+    return input;
+  }
 
-    Vector<T> gradient{lossFunctionDerivative(input(0), out)};
+  T forwardOne(const Vector<T> &input, const Vector<T> &out) {
+    // input is processed layer by layer
+    Vector<T> res = input.clone();
+    std::for_each(nnLayers.begin(), nnLayers.end(),
+                  [&](auto &layer) { layer->forwardStep(res); });
+
+    Vector<T> gradient{optimizer.lossGradient(out, res)};
     std::for_each(nnLayers.rbegin(), nnLayers.rend(),
                   [&](auto &layer) { layer->backwardStep(gradient); });
 
     batchedElements += 1;
     accumulatedGradient += gradient(0);
-    accumulatedLoss += lossFunction(input(0), out);
-    return input(0);
+    return optimizer.loss(out, res);
+  }
+
+  using DataPair = std::pair<Vector<T>, Vector<T>>;
+
+  T forwardBatch(std::span<DataPair> batch) {
+    T averageLoss = static_cast<T>(0.0);
+    for (auto &[x, y] : batch) {
+      averageLoss += forwardOne(x, y);
+    }
+    return averageLoss / batch.size();
   }
   void backward(const T &alpha) {
     std::for_each(nnLayers.begin(), nnLayers.end(), [&](auto &layer) {
       layer->finalize(alpha, batchedElements);
     });
 
-    // std::cout <<  "[DEBUG] Average loss function is: " <<
-    // accumulatedLoss/batchedElements << " on a batch of size: " <<
-    // batchedElements << std::endl; std::cout << "[DEBUG] Average gradient is:
-    // " << accumulatedGradient / static_cast<T>(batchedElements) << std::endl;
     accumulatedGradient = static_cast<T>(0.0);
-    accumulatedLoss = static_cast<T>(0.0);
     batchedElements = 0;
   }
 
   const T &getGradient() const { return accumulatedGradient; }
-  size_t getBatchedElements() const { return batchedElements; }
 
 private:
+  Optimizer<T, LossType> optimizer;
   std::vector<std::unique_ptr<BaseLayer<T>>> nnLayers;
 
   template <typename V, typename... Args>
