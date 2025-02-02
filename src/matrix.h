@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cassert>
+#include <initializer_list>
 #include <ostream>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
-
-#include <stdexcept>
 
 #include "math.h"
 
@@ -20,15 +21,30 @@ public:
 // N number of rows, M number of columns
 template <typename T> class Matrix {
 public:
-    std::vector<T> matData;
     std::size_t N;
     std::size_t M;
+    std::vector<T> matData;
 private:
-    Matrix(const Matrix<T> &mat) : matData{mat.matData}, N{mat.N}, M{mat.M} {};
+    Matrix(const Matrix<T> &mat) : N{mat.N}, M{mat.M}, matData{mat.matData} {};
 
 public:
+    explicit Matrix(std::initializer_list<std::initializer_list<T>> doubleList) {
+        N = doubleList.size();
+        M = 0;
+        // 1) Check initializer list consistency
+        for(const std::initializer_list<T>& list : doubleList){
+            if(M == 0){
+                M = list.size();
+                if(M == 0) { throw MatrixException("Matrix constructor initializer empty row"); }
+            }
+            matData.insert(matData.end(), list.begin(), list.end());
+            if(M != list.size()){
+                throw MatrixException("Matrix constructor initializer list row dimensions mismatch");
+            }
+        }
+    }
     Matrix(std::size_t N, std::size_t M) : N{N}, M{M}, matData{std::vector<T>(N*M)} {};
-    Matrix(Matrix<T> &&mat) : matData{std::move(mat.matData)}, N{mat.N}, M{mat.M} {};
+    Matrix(Matrix<T> &&mat) : N{mat.N}, M{mat.M}, matData{std::move(mat.matData)} {};
     Matrix<T> &operator=(Matrix<T> mat);
     Matrix<T> clone() const;
 
@@ -48,18 +64,19 @@ public:
     Matrix<T> operator-() const;
     T norm() const;
     T norm2() const;
+    Matrix<T> transpose() const;
 };
 
 // x column y row
 template <typename T>
 T &Matrix<T>::operator()(std::size_t x, std::size_t y) {
-    return matData[x + y * N];
+    return matData[x * M + y];
 }
 
 // x column y row
 template <typename T>
 const T &Matrix<T>::operator()(std::size_t x, std::size_t y) const {
-    return matData[x + y * N];
+    return matData[x * M + y];
 }
 
 template <typename T>
@@ -148,6 +165,17 @@ T Matrix<T>::norm2() const {
 }
 
 template <typename T>
+Matrix<T> Matrix<T>::transpose() const {
+    Matrix<T> res(this->M, this->N);
+    for(size_t i = 0; i < N; i++) {
+        for (size_t j = 0; j < M; j++) {
+            res(j, i) = (*this)(i, j);
+        }
+    }
+    return res;
+}
+
+template <typename T>
 Matrix<T> &Matrix<T>::operator*=(const T &c1) {
     for (T &el : matData) {
         el *= c1;
@@ -203,7 +231,12 @@ public:
             throw MatrixException("Cannot convert given matrix to vector!");
         }
     };
-    Vector(size_t N) : Matrix<T>{N, 1} {};
+    // We dont care that this is inefficient since it will be used basically only for small vectors crafted by hand
+    explicit Vector(std::initializer_list<T> data) : Matrix<T>{{data}} {
+        *this = this->transpose();
+    }
+
+    explicit Vector(size_t N) : Matrix<T>{N, 1} {};
     T &operator()(std::size_t x);
     const T &operator()(std::size_t x) const;
 
@@ -219,4 +252,16 @@ T &Vector<T>::operator()(std::size_t x) {
 template <typename T>
 const T &Vector<T>::operator()(std::size_t x) const {
     return Matrix<T>::operator()(x, 0);
+}
+
+template <typename T>
+Matrix<T> outerProduct(const Vector<T>& v1, const Vector<T>& v2){
+    // Mij = vi*vj
+    Matrix<T> res(v1.N, v2.N);
+    for(size_t i = 0; i < v1.N ; i++){
+        for(size_t j = 0; j < v2.N ; j++) {
+            res(i,j) = v1(i)*v2(j);
+        }
+    }
+    return res;
 }
