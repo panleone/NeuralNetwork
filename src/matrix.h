@@ -213,9 +213,9 @@ Matrix<T> operator*(const Matrix<T> &m1,
         throw MatrixException("Matrix product size mismatch");
     }
     Matrix<T> res{N, K};
-    for (size_t j = 0; j < K; j++) {
+    for (size_t i = 0; i < N; i++) {
         for (size_t k = 0; k < M; k++) {
-            for (size_t i = 0; i < N; i++) {
+            for (size_t j = 0; j < K; j++) {
                 res(i, j) += m1(i, k) * m2(k, j);
             }
         }
