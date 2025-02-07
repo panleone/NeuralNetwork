@@ -136,7 +136,7 @@ static void fully_connected_layer_tests() {
   float alpha = 0.1f;
   Matrix<float> accumulatedWeightsGradient = layer.getWeightsGradient().clone();
   Vector<float> accumulatedBiasGradient = layer.getBiasGradient().clone();
-  layer.finalize(alpha, 2);
+  layer.finalize(alpha, 0.0f, 2);
   check_matrix_equality(Matrix<float>{{0.0f, 0.0f}}, layer.getWeightsGradient(),
                         epsilon, "Fully connected finalize");
   check_vector_equality(Vector<float>{0.0f}, layer.getBiasGradient(), epsilon,

@@ -38,10 +38,11 @@ int main() {
   size_t epoch = 50;
   size_t batchSize = 100;
   float alpha = 0.01f;
+  float beta = 0.9f;
   for (size_t i = 0; i < epoch; i++) {
     loader.randomIter(batchSize, [&](auto batch) {
       auto loss = model.forwardBatch(batch);
-      model.backward(alpha);
+      model.backward(alpha, beta);
       std::cout << "Batch handled, average loss: " << loss << std::endl;
     });
 

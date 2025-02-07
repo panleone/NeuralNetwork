@@ -48,9 +48,9 @@ public:
     }
     return averageLoss / batch.size();
   }
-  void backward(const T &alpha) {
+  void backward(const T &alpha, const T &beta) {
     std::for_each(nnLayers.begin(), nnLayers.end(), [&](auto &layer) {
-      layer->finalize(alpha, batchedElements);
+      layer->finalize(alpha, beta, batchedElements);
     });
 
     accumulatedGradient = static_cast<T>(0.0);

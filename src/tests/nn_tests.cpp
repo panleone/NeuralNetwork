@@ -52,6 +52,6 @@ static void gradient_flow_tests() {
     check_num_equality(gradient, (resP - resM) / (2 * eps), eps,
                        "Backpropagation, gradient error");
 
-    model.backward(0.01);
+    model.backward(0.01, 0.0);
   }
 }

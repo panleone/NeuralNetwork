@@ -12,7 +12,7 @@ public:
   virtual void forwardStep(Vector<T> &prevLayerOutput) = 0;
   virtual ~BaseLayer() = default;
   virtual void backwardStep(Vector<T> &prevGradient) = 0;
-  virtual void finalize(const T &alpha, size_t batchSize) = 0;
+  virtual void finalize(const T &alpha, const T &beta, size_t batchSize) = 0;
 };
 
 template <typename T> class ReluLayer : public BaseLayer<T> {
@@ -46,7 +46,7 @@ public:
     }
   }
   // Nothing to update
-  void finalize([[maybe_unused]] const T &alpha,
+  void finalize([[maybe_unused]] const T &alpha, [[maybe_unused]] const T &beta,
                 [[maybe_unused]] size_t batchSize) override{};
 };
 
@@ -58,6 +58,9 @@ private:
   // the gradient of each batch is stored here
   Matrix<T> weightsGradient;
   Vector<T> biasGradient;
+  // momentum terms
+  Matrix<T> weightsMomentum;
+  Vector<T> biasMomentum;
 
   Vector<T> prevLayerOutputCache;
 
@@ -68,7 +71,7 @@ public:
             out, in, static_cast<T>(0.0),
             sqrt(static_cast<T>(4.0) / (static_cast<T>(in + out))))},
         bias(out), weightsGradient(out, in), biasGradient(out),
-        prevLayerOutputCache(in) {
+        weightsMomentum(out, in), biasMomentum(out), prevLayerOutputCache(in) {
     // For testing purposes we just set all elements of the matrix to the
     // constant value one
     if (isUnitTest) {
@@ -92,14 +95,14 @@ public:
     prevGradient = this->weights.transpose() * prevGradient;
   }
 
-  void finalize(const T &alpha, size_t batchSize) override {
+  void finalize(const T &alpha, const T &beta, size_t batchSize) override {
     weightsGradient /= batchSize;
-    weightsGradient *= alpha;
-    weights -= weightsGradient;
+    weightsMomentum = beta * weightsMomentum + (1 - beta) * weightsGradient;
+    weights -= alpha * weightsMomentum;
 
     biasGradient /= batchSize;
-    biasGradient *= alpha;
-    bias -= biasGradient;
+    biasMomentum = beta * biasMomentum + (1 - beta) * biasGradient;
+    bias -= alpha * biasMomentum;
 
     weightsGradient *= static_cast<T>(0.0);
     biasGradient *= static_cast<T>(0.0);
