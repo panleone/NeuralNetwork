@@ -21,7 +21,7 @@ void nn_tests() { gradient_flow_tests(); }
  */
 static void gradient_flow_tests() {
   // Create a neural network
-  NeuralNetwork<double, double, LOSS::MSE> model{
+  NeuralNetwork<double, Vector<double>, LOSS::MSE> model{
       std::make_unique<FullyConnectedLayer<double>>(1, 3),
       std::make_unique<ReluLayer<double>>(3),
       std::make_unique<FullyConnectedLayer<double>>(3, 8),

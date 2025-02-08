@@ -22,14 +22,6 @@ int main() {
     exit(1);
   }
 
-  NeuralNetwork<float, float, LOSS::MSE> model{
-      std::make_unique<FullyConnectedLayer<float>>(1, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 1),
-  };
-
   NeuralNetwork<float, size_t, LOSS::SOFTMAX> model_classification{
       std::make_unique<FullyConnectedLayer<float>>(1, 10),
       std::make_unique<ReluLayer<float>>(10),
@@ -43,7 +35,7 @@ int main() {
       std::make_unique<ReluLayer<float>>(10),
       std::make_unique<FullyConnectedLayer<float>>(10, 5),
   };
-  DataLoader<float, size_t> loader;
+  DataLoader<Vector<float>, size_t> loader;
   for (int i = 0; i < 10000; i++) {
     float x = static_cast<float>(i) / 5000.0f;
     size_t res = 0;
@@ -60,7 +52,7 @@ int main() {
     if (i > 8000) {
       res = 4;
     }
-    loader.push(Vector<float>{x}, Vector<size_t>{res});
+    loader.push(Vector<float>{x}, res);
   }
   size_t epoch = 50;
   size_t batchSize = 100;

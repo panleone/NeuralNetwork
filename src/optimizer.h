@@ -18,9 +18,9 @@ enum class LOSS {
 
 template <typename T, typename Ty, LOSS Type> class Optimizer {
 public:
-  T loss(const Vector<Ty> &y, const Vector<T> &f);
+  T loss(const Ty &y, const Vector<T> &f);
 
-  Vector<T> lossGradient(const Vector<Ty> &y, const Vector<T> &f);
+  Vector<T> lossGradient(const Ty &y, const Vector<T> &f);
 };
 
 // This shouldn't be needed since I am compiling with C++23 and issue 2518 has
@@ -28,16 +28,18 @@ public:
 template <LOSS> constexpr bool dependent_false_v = false;
 
 template <typename T, typename Ty, LOSS Type>
-T Optimizer<T, Ty, Type>::loss(const Vector<Ty> &y, const Vector<T> &f) {
+T Optimizer<T, Ty, Type>::loss(const Ty &y, const Vector<T> &f) {
   if constexpr (Type == LOSS::MSE) {
     return (f - y).norm2();
   } else if constexpr (Type == LOSS::SOFTMAX) {
-    assert(y.N == 1);
+    static_assert(std::is_integral_v<Ty>);
+    assert(y < f.N && y >= 0);
+
     T c1 = static_cast<T>(0);
     for (size_t i = 0; i < f.N; i++) {
       c1 += exp(f(i));
     }
-    return -f(y(0)) + log(c1);
+    return -f(y) + log(c1);
 
   } else {
     static_assert(dependent_false_v<Type>);
@@ -45,14 +47,16 @@ T Optimizer<T, Ty, Type>::loss(const Vector<Ty> &y, const Vector<T> &f) {
 }
 
 template <typename T, typename Ty, LOSS Type>
-Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Vector<Ty> &y,
+Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Ty &y,
                                                const Vector<T> &f) {
   if constexpr (Type == LOSS::MSE) {
     Vector<T> diff = f - y;
     diff *= 2;
     return diff;
   } else if constexpr (Type == LOSS::SOFTMAX) {
-    assert(y.N == 1);
+    static_assert(std::is_integral_v<Ty>);
+    assert(y < f.N && y >= 0);
+
     Vector<T> res(f.N);
 
     T commonDenom = static_cast<T>(0);
@@ -61,7 +65,7 @@ Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Vector<Ty> &y,
       commonDenom += exp(f(i));
     }
     res /= commonDenom;
-    res(y(0)) -= 1;
+    res(y) -= 1;
     return res;
   } else {
     static_assert(dependent_false_v<Type>);

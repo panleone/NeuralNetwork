@@ -2,22 +2,20 @@
 
 #include <functional>
 #include <span>
+#include <type_traits>
 
 #include "matrix.h"
 #include "random.h"
 
 template <typename Tx, typename Ty> class DataLoader {
 
-  using DataPair = std::pair<Vector<Tx>, Vector<Ty>>;
+  using DataPair = std::pair<Tx, Ty>;
   std::vector<DataPair> data;
 
 public:
   DataLoader(){};
-  void push(const Vector<Tx> &x, const Vector<Ty> &y) {
-    data.push_back(std::make_pair(x.clone(), y.clone()));
-  }
-  void push(Vector<Tx> &&x, Vector<Ty> &&y) {
-    data.push_back(std::make_pair(std::move(x), std::move(y)));
+  template <typename Ux, typename Uy> void push(Ux &&x, Uy &&y) {
+    data.push_back(std::make_pair(std::forward<Ux>(x), std::forward<Uy>(y)));
   }
 
   void randomIter(size_t batchSize,

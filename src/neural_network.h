@@ -24,7 +24,7 @@ public:
     return input;
   }
 
-  T forwardOne(const Vector<T> &input, const Vector<Ty> &out) {
+  T forwardOne(const Vector<T> &input, const Ty &out) {
     // input is processed layer by layer
     Vector<T> res = input.clone();
     std::for_each(nnLayers.begin(), nnLayers.end(),
@@ -39,7 +39,7 @@ public:
     return optimizer.loss(out, res);
   }
 
-  using DataPair = std::pair<Vector<T>, Vector<Ty>>;
+  using DataPair = std::pair<Vector<T>, Ty>;
 
   T forwardBatch(std::span<DataPair> batch) {
     T averageLoss = static_cast<T>(0.0);
