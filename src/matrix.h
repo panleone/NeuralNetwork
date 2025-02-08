@@ -28,6 +28,8 @@ private:
   Matrix(const Matrix<T> &mat) : N{mat.N}, M{mat.M}, matData{mat.matData} {};
 
 public:
+  explicit Matrix(std::vector<T> &&arr)
+      : N{arr.size()}, M{1}, matData{std::move(arr)} {}
   explicit Matrix(std::initializer_list<std::initializer_list<T>> doubleList) {
     N = doubleList.size();
     M = 0;
@@ -218,6 +220,8 @@ public:
       throw MatrixException("Cannot convert given matrix to vector!");
     }
   };
+
+  explicit Vector(std::vector<T> &&arr) : Matrix<T>{std::move(arr)} {}
   // We dont care that this is inefficient since it will be used basically only
   // for small vectors crafted by hand
   explicit Vector(std::initializer_list<T> data) : Matrix<T>{{data}} {

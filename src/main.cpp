@@ -9,6 +9,7 @@
 
 #include "data_loader.h"
 
+#include "../datasets/mnist1d/load_mnist1d.h"
 int main() {
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
 
@@ -22,61 +23,49 @@ int main() {
     exit(1);
   }
 
-  NeuralNetwork<float, size_t, LOSS::SOFTMAX> model_classification{
-      std::make_unique<FullyConnectedLayer<float>>(1, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 10),
-      std::make_unique<ReluLayer<float>>(10),
-      std::make_unique<FullyConnectedLayer<float>>(10, 5),
-  };
-  DataLoader<Vector<float>, size_t> loader;
-  for (int i = 0; i < 10000; i++) {
-    float x = static_cast<float>(i) / 5000.0f;
-    size_t res = 0;
+  auto [trainDataset, testDataset] = loadMNIST1D();
+  auto testData = testDataset.getData();
 
-    if (i > 2000) {
-      res = 1;
-    }
-    if (i > 4000) {
-      res = 2;
-    }
-    if (i > 6000) {
-      res = 3;
-    }
-    if (i > 8000) {
-      res = 4;
-    }
-    loader.push(Vector<float>{x}, res);
-  }
-  size_t epoch = 50;
+  NeuralNetwork<float, size_t, LOSS::SOFTMAX> model_classification{
+      std::make_unique<FullyConnectedLayer<float>>(40, 100),
+      std::make_unique<ReluLayer<float>>(100),
+      std::make_unique<FullyConnectedLayer<float>>(100, 100),
+      std::make_unique<ReluLayer<float>>(100),
+      std::make_unique<FullyConnectedLayer<float>>(100, 100),
+      std::make_unique<ReluLayer<float>>(100),
+      std::make_unique<FullyConnectedLayer<float>>(100, 10),
+  };
+
+  size_t epoch = 150;
   size_t batchSize = 100;
   float alpha = 0.1f;
   float beta = 0.9f;
-  for (size_t i = 0; i < epoch; i++) {
-    loader.randomIter(batchSize, [&](auto batch) {
-      auto loss = model_classification.forwardBatch(batch);
-      model_classification.backward(alpha, beta);
-      std::cout << "Batch handled, average loss: " << loss << std::endl;
-    });
 
-    if (i > 0 && i % 20 == 0) {
-      alpha /= 2.0f;
+  for (size_t i = 0; i < epoch; i++) {
+    float lossPerEpoch{0.0f};
+
+    trainDataset.randomIter(batchSize, [&](auto batch) {
+      lossPerEpoch += model_classification.forwardBatch(batch);
+      model_classification.backward(alpha, beta);
+    });
+    std::cout << "Epoch " << i + 1 << " completed. Loss was: " << lossPerEpoch
+              << std::endl;
+
+    size_t goodPredictions{0};
+    for (const auto &[xTest, yTest] : testData) {
+      auto pred = model_classification.predict(xTest.clone());
+      auto argmaxIt = max_element(pred.matData.begin(), pred.matData.end());
+      size_t argmax =
+          static_cast<size_t>(std::distance(pred.matData.begin(), argmaxIt));
+      if (yTest == argmax) {
+        goodPredictions += 1;
+      }
     }
+    std::cout << "Epoch " << i + 1 << " error on test data is: "
+              << 100.0f * (1.0f - static_cast<float>(goodPredictions) /
+                                      static_cast<float>(testData.size()))
+              << "%" << std::endl;
   }
-  for (size_t i = 0; i < 100; i++) {
-    std::cout << model_classification.predict(
-        Vector<float>{((float)i) / 5000.0f});
-  }
-  std::cout << "---" << std::endl;
-  for (size_t i = 6900; i < 7000; i++) {
-    std::cout << model_classification.predict(
-        Vector<float>{((float)i) / 5000.0f});
-  }
+
   return 0;
 }

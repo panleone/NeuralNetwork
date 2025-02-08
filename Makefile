@@ -3,15 +3,18 @@ CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
 
 OBJ = src/main.o
 
-OBJ_TESTS = src/tests/layer_tests.o src/tests/matrix_tests.o src/tests/nn_tests.o
+OBJ_TESTS = src/tests/layer_tests.o src/tests/matrix_tests.o src/tests/nn_tests.o \
+			datasets/mnist1d/load_mnist1d.o
 
 
 HEADERS =  src/matrix.h src/layer.h src/data_loader.h src/neural_network.h src/random.h \
-			src/optimizer.h
+			src/optimizer.h \
+			datasets/mnist1d/load_mnist1d.h
 HEADERS_TESTS = src/tests/layer_tests.h src/tests/matrix_tests.h src/tests/nn_tests.h \
 				src/tests/test_utils.h src/tests/test_runner.h
 
-SRC = src/main.cpp
+SRC = src/main.cpp \
+	  datasets/mnist1d/load_mnist1d.cpp
 SRC_TESTS = src/tests/layer_tests.cpp src/tests/matrix_tests.cpp src/tests/nn_tests.cpp
 
 BIN = NeuralNetwork

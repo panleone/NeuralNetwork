@@ -29,4 +29,7 @@ public:
       std::advance(it, dist);
     }
   }
+  std::span<DataPair> getData() {
+    return std::span<DataPair>(data.data(), data.size());
+  }
 };

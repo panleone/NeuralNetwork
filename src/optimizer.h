@@ -61,7 +61,7 @@ Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Ty &y,
 
     T commonDenom = static_cast<T>(0);
     for (size_t i = 0; i < f.N; i++) {
-      res(i) += exp(f(i));
+      res(i) = exp(f(i));
       commonDenom += exp(f(i));
     }
     res /= commonDenom;
