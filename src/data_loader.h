@@ -6,17 +6,17 @@
 #include "matrix.h"
 #include "random.h"
 
-template <typename T> class DataLoader {
+template <typename Tx, typename Ty> class DataLoader {
 
-  using DataPair = std::pair<Vector<T>, Vector<T>>;
+  using DataPair = std::pair<Vector<Tx>, Vector<Ty>>;
   std::vector<DataPair> data;
 
 public:
   DataLoader(){};
-  void push(const Vector<T> &x, const Vector<T> &y) {
+  void push(const Vector<Tx> &x, const Vector<Ty> &y) {
     data.push_back(std::make_pair(x.clone(), y.clone()));
   }
-  void push(Vector<T> &&x, Vector<T> &&y) {
+  void push(Vector<Tx> &&x, Vector<Ty> &&y) {
     data.push_back(std::make_pair(std::move(x), std::move(y)));
   }
 

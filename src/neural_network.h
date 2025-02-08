@@ -8,7 +8,7 @@
 #include "optimizer.h"
 #include <span>
 
-template <typename T, LOSS LossType> class NeuralNetwork {
+template <typename T, typename Ty, LOSS LossType> class NeuralNetwork {
 private:
   T accumulatedGradient = static_cast<T>(0.0);
   size_t batchedElements = 0;
@@ -24,7 +24,7 @@ public:
     return input;
   }
 
-  T forwardOne(const Vector<T> &input, const Vector<T> &out) {
+  T forwardOne(const Vector<T> &input, const Vector<Ty> &out) {
     // input is processed layer by layer
     Vector<T> res = input.clone();
     std::for_each(nnLayers.begin(), nnLayers.end(),
@@ -39,7 +39,7 @@ public:
     return optimizer.loss(out, res);
   }
 
-  using DataPair = std::pair<Vector<T>, Vector<T>>;
+  using DataPair = std::pair<Vector<T>, Vector<Ty>>;
 
   T forwardBatch(std::span<DataPair> batch) {
     T averageLoss = static_cast<T>(0.0);
@@ -60,7 +60,7 @@ public:
   const T &getGradient() const { return accumulatedGradient; }
 
 private:
-  Optimizer<T, LossType> optimizer;
+  Optimizer<T, Ty, LossType> optimizer;
   std::vector<std::unique_ptr<BaseLayer<T>>> nnLayers;
 
   template <typename V, typename... Args>
