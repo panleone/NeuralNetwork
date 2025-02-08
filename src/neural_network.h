@@ -66,7 +66,8 @@ private:
   template <typename V, typename... Args>
   void initialize_layers(V &&first, Args &&...args) {
     nnLayers.push_back(std::forward<V &&>(first));
-    initialize_layers(std::forward<Args &&>(args)...);
+    if constexpr (sizeof...(args) > 0) {
+      initialize_layers(std::forward<Args &&>(args)...);
+    }
   }
-  void initialize_layers(){};
 };
