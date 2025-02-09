@@ -86,7 +86,8 @@ public:
   void forwardStep(Vector<T> &prevLayerOutput) override {
     // Cache the output of the previous layer (Will be used in backpropagation)
     this->prevLayerOutputCache = prevLayerOutput.clone();
-    prevLayerOutput = this->bias + this->weights * prevLayerOutput;
+    prevLayerOutput = this->weights * prevLayerOutput;
+    prevLayerOutput += bias;
   }
 
   void backwardStep(Vector<T> &prevGradient) override {
@@ -96,7 +97,7 @@ public:
         outerProduct(prevGradient, this->prevLayerOutputCache);
 
     // Update the gradient
-    prevGradient = this->weights.transpose() * prevGradient;
+    prevGradient = this->weights.transposeMatMul(prevGradient);
   }
 
   void setFinalizer(FINALIZER finalizer, std::span<T> params) override {

@@ -67,6 +67,7 @@ public:
   // 2) matrix-matrix operations
   Matrix<T> &operator+=(const Matrix<T> &m1);
   Matrix<T> &operator-=(const Matrix<T> &m1);
+  Matrix<T> transposeMatMul(const Matrix<T> &m1);
 
   // 3) unary operators
   Matrix<T> operator-() const;
@@ -202,13 +203,10 @@ template <typename T> Matrix<T> operator*(const T &c, const Matrix<T> &m1) {
 
 template <typename T>
 Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
-  size_t N = m1.N;
-  size_t M = m1.M;
-  size_t K = m2.M;
   if (m1.M != m2.N) {
     throw MatrixException("Matrix product size mismatch");
   }
-  Matrix<T> res(N, K);
+  Matrix<T> res(m1.N, m2.M);
   // For float and doubles we can use the very fast implementation of openblas
   if constexpr (std::is_same_v<T, float>) {
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
@@ -219,6 +217,9 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
                 1.0, m1.matData.data(), m1.M, m2.matData.data(), m2.M, 0.0,
                 res.matData.data(), res.M);
   } else {
+    size_t N = m1.N;
+    size_t M = m1.M;
+    size_t K = m2.M;
     // ... in other cases fallback to manual, slow, matrix multiplication
     for (size_t i = 0; i < N; i++) {
       for (size_t k = 0; k < M; k++) {
@@ -227,6 +228,34 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
         }
       }
     }
+  }
+  return res;
+}
+
+/**
+ * TODO: generalize better... this can become the standard function to perform
+ * matrix multiplications A*B, A^T*B, A^T*B^T...
+ * @param m1
+ * @return this.transpose()*m1
+ */
+template <typename T>
+Matrix<T> Matrix<T>::transposeMatMul(const Matrix<T> &m1) {
+  // this_ai m1_aj
+  if (this->N != m1.N) {
+    throw MatrixException("Matrix transpose product size mismatch");
+  }
+  Matrix<T> res(this->M, m1.M);
+  if constexpr (std::is_same_v<T, float>) {
+    cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, this->M, m1.M, this->N,
+                1.0f, this->matData.data(), this->M, m1.matData.data(), m1.M,
+                0.0f, res.matData.data(), res.M);
+
+  } else if constexpr (std::is_same_v<T, double>) {
+    cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, this->M, m1.M, this->N,
+                1.0, this->matData.data(), this->M, m1.matData.data(), m1.M,
+                0.0, res.matData.data(), res.M);
+  } else {
+    res = (*this).transpose() * m1;
   }
   return res;
 }
