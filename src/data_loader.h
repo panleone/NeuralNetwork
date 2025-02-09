@@ -15,7 +15,8 @@ template <typename Tx, typename Ty> class DataLoader {
 public:
   DataLoader(){};
   template <typename Ux, typename Uy> void push(Ux &&x, Uy &&y) {
-    data.push_back(std::make_pair(std::forward<Ux>(x), std::forward<Uy>(y)));
+    data.push_back(
+        std::make_pair(std::forward<Ux &&>(x), std::forward<Uy &&>(y)));
   }
 
   void randomIter(size_t batchSize,
