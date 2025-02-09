@@ -120,8 +120,14 @@ template <typename T> Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &m1) {
   if (m1.N != N || m1.M != M) {
     throw MatrixException("Matrix += operator dimension mismatch");
   }
-  for (size_t i = 0; i < N * M; i++) {
-    matData[i] += m1.matData[i];
+  if constexpr (std::is_same_v<T, float>) {
+    cblas_saxpy(N * M, 1.0, m1.matData.data(), 1, matData.data(), 1);
+  } else if constexpr (std::is_same_v<T, double>) {
+    cblas_daxpy(N * M, 1.0, m1.matData.data(), 1, matData.data(), 1);
+  } else {
+    for (size_t i = 0; i < N * M; i++) {
+      matData[i] += m1.matData[i];
+    }
   }
   return *this;
 }
@@ -208,12 +214,10 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
                 1.0f, m1.matData.data(), m1.M, m2.matData.data(), m2.M, 0.0f,
                 res.matData.data(), res.M);
-    return res;
   } else if constexpr (std::is_same_v<T, double>) {
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
                 1.0, m1.matData.data(), m1.M, m2.matData.data(), m2.M, 0.0,
                 res.matData.data(), res.M);
-    return res;
   } else {
     // ... in other cases fallback to manual, slow, matrix multiplication
     for (size_t i = 0; i < N; i++) {
@@ -223,8 +227,8 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
         }
       }
     }
-    return res;
   }
+  return res;
 }
 
 template <typename T> class Vector : public Matrix<T> {
@@ -262,9 +266,17 @@ template <typename T>
 Matrix<T> outerProduct(const Vector<T> &v1, const Vector<T> &v2) {
   // Mij = vi*vj
   Matrix<T> res(v1.N, v2.N);
-  for (size_t i = 0; i < v1.N; i++) {
-    for (size_t j = 0; j < v2.N; j++) {
-      res(i, j) = v1(i) * v2(j);
+  if constexpr (std::is_same_v<T, float>) {
+    cblas_sger(CblasRowMajor, v1.N, v2.N, 1.0f, v1.matData.data(), 1,
+               v2.matData.data(), 1, res.matData.data(), v2.N);
+  } else if constexpr (std::is_same_v<T, double>) {
+    cblas_dger(CblasRowMajor, v1.N, v2.N, 1.0f, v1.matData.data(), 1,
+               v2.matData.data(), 1, res.matData.data(), v2.N);
+  } else {
+    for (size_t i = 0; i < v1.N; i++) {
+      for (size_t j = 0; j < v2.N; j++) {
+        res(i, j) = v1(i) * v2(j);
+      }
     }
   }
   return res;
