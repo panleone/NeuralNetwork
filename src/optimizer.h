@@ -35,11 +35,12 @@ T Optimizer<T, Ty, Type>::loss(const Ty &y, const Vector<T> &f) {
     static_assert(std::is_integral_v<Ty>);
     assert(y < f.N && y >= 0);
 
-    T c1 = static_cast<T>(0);
+    T maxF = *std::max_element(f.matData.begin(), f.matData.end());
+    T c1 = static_cast<T>(1);
     for (size_t i = 0; i < f.N; i++) {
-      c1 += exp(f(i));
+      c1 += exp(f(i) - maxF);
     }
-    return -f(y) + log(c1);
+    return -f(y) + maxF + log(c1);
 
   } else {
     static_assert(dependent_false_v<Type>);
@@ -59,10 +60,11 @@ Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Ty &y,
 
     Vector<T> res(f.N);
 
+    T maxF = *std::max_element(f.matData.begin(), f.matData.end());
     T commonDenom = static_cast<T>(0);
     for (size_t i = 0; i < f.N; i++) {
-      res(i) = exp(f(i));
-      commonDenom += exp(f(i));
+      res(i) = exp(f(i) - maxF);
+      commonDenom += res(i);
     }
     res /= commonDenom;
     res(y) -= 1;
