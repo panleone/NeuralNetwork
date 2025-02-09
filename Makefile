@@ -1,8 +1,8 @@
 CXX=g++
-CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
+#CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
 # flags for performance testing
-# CXXFLAGS = -std=c++23 -flto -Ofast
-
+CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math
+LDFLAGS= -lopenblas
 OBJ = src/main.o
 
 OBJ_TESTS = src/tests/layer_tests.o src/tests/matrix_tests.o src/tests/nn_tests.o \
@@ -22,7 +22,7 @@ SRC_TESTS = src/tests/layer_tests.cpp src/tests/matrix_tests.cpp src/tests/nn_te
 BIN = NeuralNetwork
 
 $(BIN) : $(OBJ) $(OBJ_TESTS)
-	$(CXX) $(CXXFLAGS) $(OBJ) $(OBJ_TESTS) -o $(BIN)
+	$(CXX) $(CXXFLAGS)  $(OBJ) $(OBJ_TESTS) $(LDFLAGS) -o $(BIN)
 
 $(OBJ) : $(HEADERS) Makefile
 $(OBJ_TESTS) : $(HEADERS_TESTS) Makefile

@@ -1,13 +1,13 @@
 #pragma once
 
+#include "math.h"
 #include <cassert>
+#include <cblas.h> // LAPACK C interface
 #include <initializer_list>
 #include <ostream>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
-
-#include "math.h"
 
 class MatrixException : public std::exception {
   std::string reason;
@@ -202,15 +202,29 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
   if (m1.M != m2.N) {
     throw MatrixException("Matrix product size mismatch");
   }
-  Matrix<T> res{N, K};
-  for (size_t i = 0; i < N; i++) {
-    for (size_t k = 0; k < M; k++) {
-      for (size_t j = 0; j < K; j++) {
-        res(i, j) += m1(i, k) * m2(k, j);
+  Matrix<T> res(N, K);
+  // For float and doubles we can use the very fast implementation of openblas
+  if constexpr (std::is_same_v<T, float>) {
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
+                1.0f, m1.matData.data(), m1.M, m2.matData.data(), m2.M, 0.0f,
+                res.matData.data(), res.M);
+    return res;
+  } else if constexpr (std::is_same_v<T, double>) {
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m1.N, m2.M, m1.M,
+                1.0, m1.matData.data(), m1.M, m2.matData.data(), m2.M, 0.0,
+                res.matData.data(), res.M);
+    return res;
+  } else {
+    // ... in other cases fallback to manual, slow, matrix multiplication
+    for (size_t i = 0; i < N; i++) {
+      for (size_t k = 0; k < M; k++) {
+        for (size_t j = 0; j < K; j++) {
+          res(i, j) += m1(i, k) * m2(k, j);
+        }
       }
     }
+    return res;
   }
-  return res;
 }
 
 template <typename T> class Vector : public Matrix<T> {
