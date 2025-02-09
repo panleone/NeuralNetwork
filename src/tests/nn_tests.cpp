@@ -28,6 +28,7 @@ static void gradient_flow_tests() {
       std::make_unique<ReluLayer<double>>(8),
       std::make_unique<FullyConnectedLayer<double>>(8, 1)};
 
+  model.setStandardFinalizer(0.01);
   // Small number to compute approximated derivative
   double eps = 0.0001;
 
@@ -52,6 +53,6 @@ static void gradient_flow_tests() {
     check_num_equality(gradient, (resP - resM) / (2 * eps), eps,
                        "Backpropagation, gradient error");
 
-    model.backward(0.01, 0.0);
+    model.backward();
   }
 }

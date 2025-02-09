@@ -134,9 +134,12 @@ static void fully_connected_layer_tests() {
 
   // Correct finalization
   float alpha = 0.1f;
+  float finalizerParams[1] = {alpha};
+  layer.setFinalizer(FINALIZER::STANDARD, std::span<float>(finalizerParams));
+
   Matrix<float> accumulatedWeightsGradient = layer.getWeightsGradient().clone();
   Vector<float> accumulatedBiasGradient = layer.getBiasGradient().clone();
-  layer.finalize(alpha, 0.0f, 2);
+  layer.finalize(2);
   check_matrix_equality(Matrix<float>{{0.0f, 0.0f}}, layer.getWeightsGradient(),
                         epsilon, "Fully connected finalize");
   check_vector_equality(Vector<float>{0.0f}, layer.getBiasGradient(), epsilon,

@@ -48,13 +48,26 @@ public:
     }
     return averageLoss / batch.size();
   }
-  void backward(const T &alpha, const T &beta) {
-    std::for_each(nnLayers.begin(), nnLayers.end(), [&](auto &layer) {
-      layer->finalize(alpha, beta, batchedElements);
-    });
+  void backward() {
+    std::for_each(nnLayers.begin(), nnLayers.end(),
+                  [&](auto &layer) { layer->finalize(batchedElements); });
 
     accumulatedGradient = static_cast<T>(0.0);
     batchedElements = 0;
+  }
+
+  void setStandardFinalizer(const T &alpha) {
+    T tmp[1] = {alpha};
+    setFinalizerInternal(FINALIZER::STANDARD, std::span<T>(tmp));
+  }
+  void setMomentumFinalizer(const T &alpha, const T &beta) {
+    T tmp[2] = {alpha, beta};
+    setFinalizerInternal(FINALIZER::MOMENTUM, std::span<T>(tmp));
+  }
+  void setAdamFinalizer(const T &alpha, const T &beta, const T &gamma,
+                        const T &epsilon) {
+    T tmp[4] = {alpha, beta, gamma, epsilon};
+    setFinalizerInternal(FINALIZER::ADAM, std::span<T>(tmp));
   }
 
   const T &getGradient() const { return accumulatedGradient; }
@@ -69,5 +82,10 @@ private:
     if constexpr (sizeof...(args) > 0) {
       initialize_layers(std::forward<Args &&>(args)...);
     }
+  }
+
+  void setFinalizerInternal(FINALIZER finalizer, std::span<T> params) {
+    std::for_each(nnLayers.begin(), nnLayers.end(),
+                  [&](auto &layer) { layer->setFinalizer(finalizer, params); });
   }
 };

@@ -1,18 +1,21 @@
 #pragma once
 
-#include <cassert>
-#include <memory>
-
 #include "math.h"
 #include "matrix.h"
 #include "random.h"
+#include <cassert>
+#include <memory>
+#include <span>
+
+#include "finalizer.h"
 
 template <typename T> class BaseLayer {
 public:
   virtual void forwardStep(Vector<T> &prevLayerOutput) = 0;
   virtual ~BaseLayer() = default;
   virtual void backwardStep(Vector<T> &prevGradient) = 0;
-  virtual void finalize(const T &alpha, const T &beta, size_t batchSize) = 0;
+  virtual void setFinalizer(FINALIZER finalizer, std::span<T> params) = 0;
+  virtual void finalize(size_t batchSize) = 0;
 };
 
 template <typename T> class ReluLayer : public BaseLayer<T> {
@@ -46,8 +49,9 @@ public:
     }
   }
   // Nothing to update
-  void finalize([[maybe_unused]] const T &alpha, [[maybe_unused]] const T &beta,
-                [[maybe_unused]] size_t batchSize) override{};
+  void setFinalizer([[maybe_unused]] FINALIZER finalizer,
+                    [[maybe_unused]] std::span<T> params) override{};
+  void finalize([[maybe_unused]] size_t batchSize) override{};
 };
 
 template <typename T> class FullyConnectedLayer : public BaseLayer<T> {
@@ -57,10 +61,10 @@ private:
 
   // the gradient of each batch is stored here
   Matrix<T> weightsGradient;
+  std::unique_ptr<FinalizerBase<Matrix<T>>> weightsFinalizer;
+
   Vector<T> biasGradient;
-  // momentum terms
-  Matrix<T> weightsMomentum;
-  Vector<T> biasMomentum;
+  std::unique_ptr<FinalizerBase<Vector<T>>> biasFinalizer;
 
   Vector<T> prevLayerOutputCache;
 
@@ -71,7 +75,7 @@ public:
             out, in, static_cast<T>(0.0),
             sqrt(static_cast<T>(4.0) / (static_cast<T>(in + out))))},
         bias(out), weightsGradient(out, in), biasGradient(out),
-        weightsMomentum(out, in), biasMomentum(out), prevLayerOutputCache(in) {
+        prevLayerOutputCache(in) {
     // For testing purposes we just set all elements of the matrix to the
     // constant value one
     if (isUnitTest) {
@@ -95,14 +99,39 @@ public:
     prevGradient = this->weights.transpose() * prevGradient;
   }
 
-  void finalize(const T &alpha, const T &beta, size_t batchSize) override {
-    weightsGradient /= batchSize;
-    weightsMomentum = beta * weightsMomentum + (1 - beta) * weightsGradient;
-    weights -= alpha * weightsMomentum;
+  void setFinalizer(FINALIZER finalizer, std::span<T> params) override {
+    if (finalizer == FINALIZER::STANDARD) {
+      // params[0] = alpha
+      assert(params.size() == 1);
+      weightsFinalizer =
+          std::make_unique<StandardFinalizer<Matrix<T>>>(weights, params[0]);
+      biasFinalizer =
+          std::make_unique<StandardFinalizer<Vector<T>>>(bias, params[0]);
+    } else if (finalizer == FINALIZER::MOMENTUM) {
+      // params[0] = alpha, params[1] = beta
+      assert(params.size() == 2);
+      weightsFinalizer = std::make_unique<MomentumFinalizer<Matrix<T>>>(
+          weights, params[0], params[1]);
+      biasFinalizer = std::make_unique<MomentumFinalizer<Vector<T>>>(
+          bias, params[0], params[1]);
+    } else if (finalizer == FINALIZER::ADAM) {
+      // params[0] = alpha, params[1] = beta,
+      // params[2] = gamma, params[3] = epsilon
+      assert(params.size() == 4);
+      weightsFinalizer = std::make_unique<AdamFinalizer<Matrix<T>>>(
+          weights, params[0], params[1], params[2], params[3]);
+      biasFinalizer = std::make_unique<AdamFinalizer<Vector<T>>>(
+          bias, params[0], params[1], params[2], params[3]);
+    }
+  }
 
-    biasGradient /= batchSize;
-    biasMomentum = beta * biasMomentum + (1 - beta) * biasGradient;
-    bias -= alpha * biasMomentum;
+  void finalize(size_t batchSize) override {
+    T tBatchSize = static_cast<T>(batchSize);
+    weightsGradient /= tBatchSize;
+    weightsFinalizer->finalize(weightsGradient);
+
+    biasGradient /= tBatchSize;
+    biasFinalizer->finalize(biasGradient);
 
     weightsGradient *= static_cast<T>(0.0);
     biasGradient *= static_cast<T>(0.0);
