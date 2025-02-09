@@ -1,5 +1,7 @@
 CXX=g++
 CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
+# flags for performanc testing
+# CXXFLAGS = -std=c++23 -flto -Ofast
 
 OBJ = src/main.o
 
