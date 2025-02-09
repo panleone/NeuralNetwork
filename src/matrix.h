@@ -20,6 +20,7 @@ public:
 // N number of rows, M number of columns
 template <typename T> class Matrix {
 public:
+  using Field = T;
   std::size_t N;
   std::size_t M;
   std::vector<T> matData;
@@ -232,8 +233,7 @@ public:
   T &operator()(std::size_t x);
   const T &operator()(std::size_t x) const;
 
-  T &operator()(std::size_t x, std::size_t y) = delete;
-  const T &operator()(std::size_t x, std::size_t y) const = delete;
+  using Matrix<T>::operator();
 };
 
 template <typename T> T &Vector<T>::operator()(std::size_t x) {
