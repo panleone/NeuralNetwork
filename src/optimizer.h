@@ -67,7 +67,7 @@ Vector<T> Optimizer<T, Ty, Type>::lossGradient(const Ty &y,
       commonDenom += res(i);
     }
     res /= commonDenom;
-    res(y) -= 1;
+    res(y) -= static_cast<T>(1);
     return res;
   } else {
     static_assert(dependent_false_v<Type>);
