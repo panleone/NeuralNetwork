@@ -22,6 +22,7 @@ int main() {
     std::cerr << err.what() << std::endl;
     exit(1);
   }
+  std::cout << "Test passed" << std::endl;
 
   auto [trainDataset, testDataset] = loadMNIST1D();
   auto testData = testDataset.getData();

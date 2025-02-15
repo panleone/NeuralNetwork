@@ -11,40 +11,44 @@
 
 template <typename T> class BaseLayer {
 public:
-  virtual void forwardStep(Vector<T> &prevLayerOutput) = 0;
+  virtual void forwardStep(Matrix<T> &prevLayerOutput) = 0;
   virtual ~BaseLayer() = default;
-  virtual void backwardStep(Vector<T> &prevGradient) = 0;
+  virtual void backwardStep(Matrix<T> &prevGradient) = 0;
   virtual void setFinalizer(FINALIZER finalizer, std::span<T> params) = 0;
   virtual void finalize(size_t batchSize) = 0;
 };
 
 template <typename T> class ReluLayer : public BaseLayer<T> {
-  Vector<int> reLUMask;
+  Matrix<int> reLUMask;
 
 public:
-  ReluLayer(std::size_t in) : reLUMask(in){};
-  void forwardStep(Vector<T> &prevLayerOutput) override {
-    if (prevLayerOutput.N != reLUMask.N) {
+  ReluLayer(std::size_t inN, size_t inM = 1) : reLUMask(inN, inM){};
+  void forwardStep(Matrix<T> &prevLayerOutput) override {
+    if (prevLayerOutput.N != reLUMask.N || prevLayerOutput.M != reLUMask.M) {
       throw std::runtime_error("ReLU activation bad size");
     }
     // ReLU activation unit
     for (size_t i = 0; i < prevLayerOutput.N; i++) {
-      if (prevLayerOutput(i) <= static_cast<T>(0.0)) {
-        prevLayerOutput(i) = static_cast<T>(0.0);
-        reLUMask(i) = 0;
-      } else {
-        reLUMask(i) = 1;
+      for (size_t j = 0; j < prevLayerOutput.M; j++) {
+        if (prevLayerOutput(i, j) <= static_cast<T>(0.0)) {
+          prevLayerOutput(i, j) = static_cast<T>(0.0);
+          reLUMask(i, j) = 0;
+        } else {
+          reLUMask(i, j) = 1;
+        }
       }
     }
   }
 
-  void backwardStep(Vector<T> &prevGradient) override {
-    if (prevGradient.N != reLUMask.N) {
+  void backwardStep(Matrix<T> &prevGradient) override {
+    if (prevGradient.N != reLUMask.N || prevGradient.M != reLUMask.M) {
       throw std::runtime_error("ReLU activation bad size");
     }
     for (size_t i = 0; i < prevGradient.N; i++) {
-      if (reLUMask(i) == 0) {
-        prevGradient(i) = static_cast<T>(0.0);
+      for (size_t j = 0; j < prevGradient.M; j++) {
+        if (reLUMask(i, j) == 0) {
+          prevGradient(i, j) = static_cast<T>(0.0);
+        }
       }
     }
   }
@@ -67,6 +71,8 @@ private:
   std::unique_ptr<FinalizerBase<Vector<T>>> biasFinalizer;
 
   Vector<T> prevLayerOutputCache;
+  size_t prevLayerN;
+  size_t prevLayerM;
 
 public:
   // HE initialization
@@ -83,14 +89,18 @@ public:
     }
   }
 
-  void forwardStep(Vector<T> &prevLayerOutput) override {
+  void forwardStep(Matrix<T> &prevLayerOutput) override {
+    // Cache the dimension and reshape the input to vector shape
+    this->prevLayerN = prevLayerOutput.N;
+    this->prevLayerM = prevLayerOutput.M;
+    prevLayerOutput.reshape(prevLayerOutput.N * prevLayerOutput.M, 1);
     // Cache the output of the previous layer (Will be used in backpropagation)
     this->prevLayerOutputCache = prevLayerOutput.clone();
     prevLayerOutput = this->weights * prevLayerOutput;
     prevLayerOutput += bias;
   }
 
-  void backwardStep(Vector<T> &prevGradient) override {
+  void backwardStep(Matrix<T> &prevGradient) override {
     // Cache the gradient
     this->biasGradient += prevGradient;
     this->weightsGradient +=
@@ -98,6 +108,7 @@ public:
 
     // Update the gradient
     prevGradient = this->weights.transposeMatMul(prevGradient);
+    prevGradient.reshape(this->prevLayerN, this->prevLayerM);
   }
 
   void setFinalizer(FINALIZER finalizer, std::span<T> params) override {

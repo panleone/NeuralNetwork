@@ -74,6 +74,9 @@ public:
   T norm() const;
   T norm2() const;
   Matrix<T> transpose() const;
+
+  // 4) More stuff
+  void reshape(size_t newN, size_t newM);
 };
 
 // x column y row
@@ -232,6 +235,14 @@ Matrix<T> operator*(const Matrix<T> &m1, const Matrix<T> &m2) {
   return res;
 }
 
+template <typename T> void Matrix<T>::reshape(size_t newN, size_t newM) {
+  if (this->N * this->M != newN * newM || newN == 0 || newM == 0) {
+    throw MatrixException("Matrix reshape not possible");
+  }
+  this->N = newN;
+  this->M = newM;
+}
+
 /**
  * TODO: generalize better... this can become the standard function to perform
  * matrix multiplications A*B, A^T*B, A^T*B^T...
@@ -292,7 +303,10 @@ template <typename T> const T &Vector<T>::operator()(std::size_t x) const {
 }
 
 template <typename T>
-Matrix<T> outerProduct(const Vector<T> &v1, const Vector<T> &v2) {
+Matrix<T> outerProduct(const Matrix<T> &v1, const Matrix<T> &v2) {
+  if (v1.M != 1 || v2.M != 1) {
+    throw MatrixException("outer product shape error!");
+  }
   // Mij = vi*vj
   Matrix<T> res(v1.N, v2.N);
   if constexpr (std::is_same_v<T, float>) {
@@ -304,7 +318,7 @@ Matrix<T> outerProduct(const Vector<T> &v1, const Vector<T> &v2) {
   } else {
     for (size_t i = 0; i < v1.N; i++) {
       for (size_t j = 0; j < v2.N; j++) {
-        res(i, j) = v1(i) * v2(j);
+        res(i, j) = v1(i, 0) * v2(j, 0);
       }
     }
   }
