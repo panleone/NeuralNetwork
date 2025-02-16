@@ -27,34 +27,51 @@ int main() {
   auto [trainDataset, testDataset] = loadMNIST1D();
   auto testData = testDataset.getData();
 
-  NeuralNetwork<float, size_t, LOSS::SOFTMAX> model{
-      std::make_unique<FullyConnectedLayer<float>>(40, 100),
-      std::make_unique<ReluLayer<float>>(100),
-      std::make_unique<FullyConnectedLayer<float>>(100, 100),
-      std::make_unique<ReluLayer<float>>(100),
-      std::make_unique<FullyConnectedLayer<float>>(100, 100),
-      std::make_unique<ReluLayer<float>>(100),
-      std::make_unique<FullyConnectedLayer<float>>(100, 10),
+  {
+    // This fully connected NN achieves around 26.0% error rate on the MNIST1D
+    // dataset, by using ADAM Finalizer:
+    // model.setAdamFinalizer(0.005f, 0.9f, 0.999f, 1.0e-6);
+    // And batchSize = 100
+    NeuralNetwork<float, size_t, LOSS::SOFTMAX> model{
+        std::make_unique<FullyConnectedLayer<float>>(40, 100),
+        std::make_unique<ReluLayer<float>>(100),
+        std::make_unique<FullyConnectedLayer<float>>(100, 100),
+        std::make_unique<ReluLayer<float>>(100),
+        std::make_unique<FullyConnectedLayer<float>>(100, 100),
+        std::make_unique<ReluLayer<float>>(100),
+        std::make_unique<FullyConnectedLayer<float>>(100, 10),
+    };
+  }
+
+  // This convolution neural network achieves 5.5% error rate on the MNIST1D dataset
+  size_t outChannels = 50;
+  NeuralNetwork<float, size_t, LOSS::SOFTMAX> cnnModel{
+      std::make_unique<ConvolutionLayer<float>>(3, 1, outChannels, 2),
+      std::make_unique<ReluLayer<float>>(19, outChannels),
+      std::make_unique<ConvolutionLayer<float>>(3, outChannels, outChannels, 2),
+      std::make_unique<ReluLayer<float>>(9, outChannels),
+      std::make_unique<ConvolutionLayer<float>>(3, outChannels, outChannels, 2),
+      std::make_unique<ReluLayer<float>>(4, outChannels),
+      std::make_unique<FullyConnectedLayer<float>>(4 * outChannels, 10),
   };
 
-  model.setAdamFinalizer(0.005f, 0.9f, 0.999f, 1.0e-6);
-  // model.setMomentumFinalizer(0.1f, 0.9f);
-  size_t epoch = 150;
+  cnnModel.setAdamFinalizer(0.005f, 0.9f, 0.999f, 1.0e-6);
+  size_t epoch = 2500;
   size_t batchSize = 100;
 
   for (size_t i = 0; i < epoch; i++) {
     float lossPerEpoch{0.0f};
 
     trainDataset.randomIter(batchSize, [&](auto batch) {
-      lossPerEpoch += model.forwardBatch(batch);
-      model.backward();
+      lossPerEpoch += cnnModel.forwardBatch(batch);
+      cnnModel.backward();
     });
     std::cout << "Epoch " << i + 1 << " completed. Loss was: " << lossPerEpoch
               << std::endl;
 
     size_t goodPredictions{0};
     for (const auto &[xTest, yTest] : testData) {
-      auto pred = model.predict(xTest.clone());
+      auto pred = cnnModel.predict(xTest.clone());
       auto argmaxIt = max_element(pred.matData.begin(), pred.matData.end());
       size_t argmax =
           static_cast<size_t>(std::distance(pred.matData.begin(), argmaxIt));
