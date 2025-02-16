@@ -134,6 +134,8 @@ public:
           weights, params[0], params[1], params[2], params[3]);
       biasFinalizer = std::make_unique<AdamFinalizer<Vector<T>>>(
           bias, params[0], params[1], params[2], params[3]);
+    } else {
+      assert(false);
     }
   }
 
@@ -154,4 +156,148 @@ public:
   const Matrix<T> &getWeights() const { return weights; }
   const Matrix<T> &getWeightsGradient() const { return weightsGradient; }
   const Vector<T> &getBiasGradient() const { return biasGradient; }
+};
+
+// For the moment 1D convolution
+template <typename T> class ConvolutionLayer : public BaseLayer<T> {
+private:
+  std::vector<Matrix<T>> convolutionMatrices;
+  Vector<T> bias;
+
+  std::vector<Matrix<T>> convolutionMatricesGradient;
+  std::vector<std::unique_ptr<FinalizerBase<Matrix<T>>>>
+      convolutionMatricesFinalizer;
+
+  Vector<T> biasGradient;
+  std::unique_ptr<FinalizerBase<Vector<T>>> biasFinalizer;
+
+  size_t stride;
+  size_t outChannel;
+  size_t inChannel;
+  size_t size;
+
+  // TODO: avoid this initialization
+  Matrix<T> prevLayerOutputCache{{0}};
+
+public:
+  ConvolutionLayer(size_t size, size_t inChannel, size_t outChannel,
+                   size_t stride, bool isUnitTest = false)
+      : bias(outChannel), convolutionMatricesFinalizer(outChannel),
+        biasGradient(outChannel), stride{stride},
+        outChannel{outChannel}, inChannel{inChannel}, size{size} {
+    for (size_t i = 0; i < outChannel; i++) {
+      Matrix<T> iConvolution = randomMatrix<T>(
+          size, inChannel, static_cast<T>(0.0),
+          sqrt(static_cast<T>(4.0) / (static_cast<T>(size + inChannel))));
+      if (isUnitTest) {
+        iConvolution =
+            deterministicConstantMatrix(size, inChannel, static_cast<T>(i + 1));
+      }
+      convolutionMatrices.push_back(std::move(iConvolution));
+      convolutionMatricesGradient.push_back(Matrix<T>(size, inChannel));
+    }
+  }
+
+  virtual void forwardStep(Matrix<T> &prevLayerOutput) {
+    assert(prevLayerOutput.M == inChannel);
+    assert(size < prevLayerOutput.N);
+
+    size_t maxSteps = prevLayerOutput.N - size;
+    size_t outN = 1 + (maxSteps - maxSteps % stride) / stride;
+
+    Matrix<T> layerOutput(outN, outChannel);
+    for (size_t j = 0; j < outN; j += 1) {
+      for (size_t i = 0; i < outChannel; i++) {
+        for (size_t l = 0; l < size; l++) {
+          for (size_t k = 0; k < inChannel; k++) {
+
+            layerOutput(j, i) += convolutionMatrices[i](l, k) *
+                                 prevLayerOutput(j * stride + l, k);
+          }
+        }
+        layerOutput(j, i) += bias(i);
+      }
+    }
+    prevLayerOutputCache = prevLayerOutput.clone();
+    prevLayerOutput = std::move(layerOutput);
+  }
+  virtual void backwardStep(Matrix<T> &prevGradient) {
+    assert(prevGradient.M == outChannel);
+    // 1) Bias gradient
+    for (size_t j = 0; j < prevGradient.N; j++) {
+      for (size_t i = 0; i < outChannel; i++) {
+        biasGradient(i) += prevGradient(j, i);
+      }
+    }
+    // 2) Weights gradient
+    for (size_t i = 0; i < prevGradient.N; i++) {
+      for (size_t j = 0; j < outChannel; j++) {
+        for (size_t alpha = 0; alpha < size; alpha++) {
+          for (size_t beta = 0; beta < inChannel; beta++) {
+
+            convolutionMatricesGradient[j](alpha, beta) +=
+                prevGradient(i, j) *
+                prevLayerOutputCache(alpha + i * stride, beta);
+          }
+        }
+      }
+    }
+    // 3) Update the flowing gradient
+    Matrix<T> updatedGradient(prevLayerOutputCache.N, prevLayerOutputCache.M);
+    for (size_t alpha = 0; alpha < prevLayerOutputCache.N; alpha++) {
+      size_t rMin = alpha % stride;
+      int qMax = std::min((alpha - rMin) / stride, prevGradient.N - 1);
+      for (size_t beta = 0; beta < prevLayerOutputCache.M; beta++) {
+        for (size_t j = 0; j < outChannel; j++) {
+          size_t r = rMin;
+          int q = qMax;
+          while (q >= 0 and r < size) {
+            updatedGradient(alpha, beta) +=
+                prevGradient(q, j) * convolutionMatrices[j](r, beta);
+            r += stride;
+            q -= 1;
+          }
+        }
+      }
+    }
+    prevGradient = std::move(updatedGradient);
+  };
+  virtual void setFinalizer(FINALIZER finalizer, std::span<T> params) {
+    if (finalizer == FINALIZER::STANDARD) {
+      // params[0] = alpha
+      assert(params.size() == 1);
+      for (size_t i = 0; i < outChannel; i++) {
+        convolutionMatricesFinalizer[i] =
+            std::make_unique<StandardFinalizer<Matrix<T>>>(
+                convolutionMatrices[i], params[0]);
+      }
+      biasFinalizer =
+          std::make_unique<StandardFinalizer<Vector<T>>>(bias, params[0]);
+    } else if (finalizer == FINALIZER::ADAM) {
+      assert(params.size() == 4);
+      for (size_t i = 0; i < outChannel; i++) {
+        convolutionMatricesFinalizer[i] =
+            std::make_unique<AdamFinalizer<Matrix<T>>>(convolutionMatrices[i],
+                                                       params[0], params[1],
+                                                       params[2], params[3]);
+      }
+      biasFinalizer = std::make_unique<AdamFinalizer<Vector<T>>>(
+          bias, params[0], params[1], params[2], params[3]);
+    } else {
+      assert(false);
+    }
+  };
+  virtual void finalize(size_t batchSize) {
+    T tBatchSize = static_cast<T>(batchSize);
+
+    biasGradient /= tBatchSize;
+    biasFinalizer->finalize(biasGradient);
+    biasGradient *= static_cast<T>(0.0);
+
+    for (size_t i = 0; i < outChannel; i++) {
+      convolutionMatricesGradient[i] /= tBatchSize;
+      convolutionMatricesFinalizer[i]->finalize(convolutionMatricesGradient[i]);
+      convolutionMatricesGradient[i] *= static_cast<T>(0.0);
+    }
+  };
 };
