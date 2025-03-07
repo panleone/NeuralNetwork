@@ -1,11 +1,11 @@
 #pragma once
 
 #include "../matrix.h"
-#include <cblas.h> // LAPACK C interface
 #include <cstring> // for memcpy
 #include <type_traits>
 
 #include "indices.h" // metaprogramming utils
+#include "operations.h"
 
 template <typename T, size_t... Shape>
 requires(std::is_arithmetic_v<T>) &&
@@ -22,8 +22,6 @@ public:
   friend auto tensorMul(const U &t1, const V &t2);
   using PackedShape = Pack<Shape...>;
   using Type = T;
-  Tensor<T, Shape...> &operator+=(const Tensor<T, Shape...> &t);
-  Tensor<T, Shape...> &operator-=(const Tensor<T, Shape...> &t);
 
   Tensor() { data = new T[size]; }
   // TODO: this is just for retro-compatibility.
@@ -67,46 +65,40 @@ public:
    * Scalar multiply and stores result in *this
    */
   auto &scalarMul(T scalar) {
-    if constexpr (std::is_same_v<T, double>) {
-      cblas_dscal(size, scalar, data, 1);
-    } else if constexpr (std::is_same_v<T, float>) {
-      cblas_dscal(size, scalar, data, 1);
-    } else {
-      // Condition that is always false...
-      static_assert(std::is_same_v<T, double>);
-    }
+    tensor_ops::scalarMul(size, data, scalar);
     return *this;
   }
 
   /**
-   * does the following:
+   * Sum between two tensors
    * *this = *this + alpha * t
+   * implemented with basic broadcasting
    */
-  void tensorSum(const Tensor<T, Shape...> &t, T alpha) {
-    if constexpr (std::is_same_v<T, double>) {
-      cblas_daxpy(t.size, alpha, t.data, 1, data, 1);
-    } else if constexpr (std::is_same_v<T, float>) {
-      cblas_saxpy(t.size, alpha, t.data, 1, data, 1);
-    } else {
-      // Condition that is always false...
-      static_assert(std::is_same_v<T, double>);
+  template <size_t... SubShape>
+  requires(std::is_same_v<
+           typename CommonPack<Pack<Shape...>, Pack<SubShape...>>::type,
+           Pack<SubShape...>>) void tensorSum(const Tensor<T, SubShape...> &t,
+                                              T alpha) {
+    constexpr size_t commonSize = Tensor<T, SubShape...>::size;
+    constexpr size_t residualSize =
+        std::max(1UL, Tensor<T, Shape...>::size / commonSize);
+    for (size_t i = 0; i < residualSize; i++) {
+      tensor_ops::bufferSum(commonSize, alpha, data + i * commonSize, t.data);
     }
   }
+
+  template <size_t... SubShape>
+  Tensor<T, Shape...> &operator+=(const Tensor<T, SubShape...> &t) {
+    this->tensorSum(t, static_cast<T>(1));
+    return *this;
+  };
+
+  template <size_t... SubShape>
+  Tensor<T, Shape...> &operator-=(const Tensor<T, SubShape...> &t) {
+    this->tensorSum(t, static_cast<T>(-1));
+    return *this;
+  };
 };
-
-template <typename T, size_t... Shape>
-Tensor<T, Shape...> &
-Tensor<T, Shape...>::operator+=(const Tensor<T, Shape...> &t) {
-  this->tensorSum(t, static_cast<T>(1));
-  return *this;
-}
-
-template <typename T, size_t... Shape>
-Tensor<T, Shape...> &
-Tensor<T, Shape...>::operator-=(const Tensor<T, Shape...> &t) {
-  this->tensorSum(t, static_cast<T>(-1));
-  return *this;
-}
 
 template <typename T, size_t... Shape>
 Tensor<T, Shape...> operator+(const Tensor<T, Shape...> &t1,
@@ -135,7 +127,8 @@ template <bool TransposeT1 = false, bool TransposeT2 = false, typename U,
 auto tensorMul(const U &t1, const V &t2) {
   static_assert(std::is_same_v<typename U::Type, typename V::Type>);
 
-  // If both tensors are vector we must treat them as matrices with one column
+  // If both tensors are vector we must treat them as matrices with one
+  // column
   constexpr bool vectorCase = U::dim == 1 && V::dim == 1;
   using Uf = std::conditional_t<vectorCase,
                                 typename U::PackedShape::append<
@@ -172,24 +165,8 @@ auto tensorMul(const U &t1, const V &t2) {
   auto resTensor = resType{};
 
   // 2) Perform the actual multiplication
-  constexpr auto t1TransposeFlag = TransposeT1 ? CblasTrans : CblasNoTrans;
-  constexpr auto t2TransposeFlag = TransposeT2 ? CblasTrans : CblasNoTrans;
-
-  constexpr int lda = (TransposeT1 ? commonDim : residualRows);
-  constexpr int ldb = (TransposeT2 ? residualColumns : commonDim);
-  constexpr int ldc = residualRows; // Output matrix leading dimension
-
-  if constexpr (std::is_same_v<typename Uf::Type, double>) {
-    cblas_dgemm(CblasColMajor, t1TransposeFlag, t2TransposeFlag, residualRows,
-                residualColumns, commonDim, 1.0, t1.data, lda, t2.data, ldb,
-                0.0, resTensor.data, ldc);
-  } else if constexpr (std::is_same_v<typename Uf::Type, float>) {
-    cblas_sgemm(CblasColMajor, t1TransposeFlag, t2TransposeFlag, residualRows,
-                residualColumns, commonDim, 1.0, t1.data, lda, t2.data, ldb,
-                0.0, resTensor.data, ldc);
-  } else {
-    // Condition that is always false...
-    static_assert(std::is_same_v<typename Uf::Type, double>);
-  }
+  tensor_ops::matMul<TransposeT1, TransposeT2>(residualRows, residualColumns,
+                                               commonDim, t1.data, t2.data,
+                                               resTensor.data);
   return resTensor;
 }
