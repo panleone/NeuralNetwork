@@ -14,6 +14,7 @@ public:
   // TODO: make those fields private
   T *data{nullptr};
   constexpr static size_t size = (Shape * ...);
+  constexpr static size_t dim = sizeof...(Shape);
 
   template <typename U, size_t... S> friend class Tensor;
 
@@ -132,31 +133,42 @@ Tensor<T, Shape...> operator-(const Tensor<T, Shape...> &t1,
 template <bool TransposeT1 = false, bool TransposeT2 = false, typename U,
           typename V>
 auto tensorMul(const U &t1, const V &t2) {
+  static_assert(std::is_same_v<typename U::Type, typename V::Type>);
+
+  // If both tensors are vector we must treat them as matrices with one column
+  constexpr bool vectorCase = U::dim == 1 && V::dim == 1;
+  using Uf = std::conditional_t<vectorCase,
+                                typename U::PackedShape::append<
+                                    1>::type::extract<Tensor, typename U::Type>,
+                                U>;
+  using Vf = std::conditional_t<vectorCase,
+                                typename V::PackedShape::append<
+                                    1>::type::extract<Tensor, typename V::Type>,
+                                V>;
 
   constexpr size_t commonDim = TransposeT1
-                                   ? PopFront<typename U::PackedShape>::value
-                                   : PopBack<typename U::PackedShape>::value;
+                                   ? PopFront<typename Uf::PackedShape>::value
+                                   : PopBack<typename Uf::PackedShape>::value;
 
   static_assert(commonDim == (TransposeT2
-                                  ? PopBack<typename V::PackedShape>::value
-                                  : PopFront<typename V::PackedShape>::value));
+                                  ? PopBack<typename Vf::PackedShape>::value
+                                  : PopFront<typename Vf::PackedShape>::value));
 
-  static_assert(std::is_same_v<typename U::Type, typename V::Type>);
   // 1) Use metaprogramming to compute the shape of the result
-  constexpr size_t residualRows = U::size / commonDim;
-  constexpr size_t residualColumns = V::size / commonDim;
+  constexpr size_t residualRows = Uf::size / commonDim;
+  constexpr size_t residualColumns = Vf::size / commonDim;
 
   using tmp =
       std::conditional_t<TransposeT1,
-                         typename PopFront<typename U::PackedShape>::type,
-                         typename PopBack<typename U::PackedShape>::type>;
+                         typename PopFront<typename Uf::PackedShape>::type,
+                         typename PopBack<typename Uf::PackedShape>::type>;
   using tmp2 =
       std::conditional_t<TransposeT2,
-                         typename PopBack<typename V::PackedShape>::type,
-                         typename PopFront<typename V::PackedShape>::type>;
+                         typename PopBack<typename Vf::PackedShape>::type,
+                         typename PopFront<typename Vf::PackedShape>::type>;
 
   using resPackType = typename tmp::merge<tmp2>::type;
-  using resType = typename resPackType::extract<Tensor, typename U::Type>;
+  using resType = typename resPackType::extract<Tensor, typename Uf::Type>;
   auto resTensor = resType{};
 
   // 2) Perform the actual multiplication
@@ -167,17 +179,17 @@ auto tensorMul(const U &t1, const V &t2) {
   constexpr int ldb = (TransposeT2 ? residualColumns : commonDim);
   constexpr int ldc = residualRows; // Output matrix leading dimension
 
-  if constexpr (std::is_same_v<typename U::Type, double>) {
+  if constexpr (std::is_same_v<typename Uf::Type, double>) {
     cblas_dgemm(CblasColMajor, t1TransposeFlag, t2TransposeFlag, residualRows,
                 residualColumns, commonDim, 1.0, t1.data, lda, t2.data, ldb,
                 0.0, resTensor.data, ldc);
-  } else if constexpr (std::is_same_v<typename U::Type, float>) {
+  } else if constexpr (std::is_same_v<typename Uf::Type, float>) {
     cblas_sgemm(CblasColMajor, t1TransposeFlag, t2TransposeFlag, residualRows,
                 residualColumns, commonDim, 1.0, t1.data, lda, t2.data, ldb,
                 0.0, resTensor.data, ldc);
   } else {
     // Condition that is always false...
-    static_assert(std::is_same_v<typename U::Type, double>);
+    static_assert(std::is_same_v<typename Uf::Type, double>);
   }
   return resTensor;
 }
