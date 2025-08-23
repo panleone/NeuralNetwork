@@ -1,0 +1,22 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+
+# Do not touch include order
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Templates & concepts
+AlwaysBreakTemplateDeclarations: Yes
+# BreakBeforeConceptDeclarations: Always <-- not supported on my pc yet
+SpaceAfterTemplateKeyword: true
+
+# Braces
+BreakBeforeBraces: Attach
+
+# Function calls
+BinPackArguments: false
+BinPackParameters: false
+
+# Namespace indentation
+NamespaceIndentation: All

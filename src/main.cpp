@@ -1,89 +1,135 @@
-#include <fenv.h>
 #include <iostream>
 
-#include "layer.h"
-#include "neural_network.h"
+#include "expressions/expression.h"
+
+#include "debug_utils.h"
+
+#include <memory>
+
+#include "metaprogramming/stack.h"
+#include "interpreter.h"
+
+#include "tensor.h"
+
+#include "optimizer.h"
+
 #include "random.h"
+
+#include "weight_initializer.h"
+#include "loss.h"
+#include <cmath>
+
+#include "../datasets/mnist1d/load_mnist1d.h"
 
 #include "tests/test_runner.h"
 
-#include "../datasets/mnist1d/load_mnist1d.h"
-#include "data_loader.h"
-#include "finalizer.h"
-int main() {
-  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+#include "avx/avx_wrapper.h"
 
-  // Run tests
-  try {
-    run_tests();
-  } catch (std::runtime_error &err) {
-    std::cerr << "Some tests failed! Is not safe to continue... quitting"
-              << std::endl;
-    std::cerr << err.what() << std::endl;
-    exit(1);
-  }
-  std::cout << "Test passed" << std::endl;
+#include "layers/linear_layer.h"
+#include "layers/convolution_layer.h"
+#include "layers/relu_layer.h"
+#include "layers/flattener_layer.h"
 
-  auto [trainDataset, testDataset] = loadMNIST1D();
-  auto testData = testDataset.getData();
+#include "tensor_variable.h"
 
-  {
-    // This fully connected NN achieves around 26.0% error rate on the MNIST1D
-    // dataset, by using ADAM Finalizer:
-    // model.setAdamFinalizer(0.005f, 0.9f, 0.999f, 1.0e-6);
-    // And batchSize = 100
-    NeuralNetwork<float, size_t, LOSS::SOFTMAX> model{
-        std::make_unique<FullyConnectedLayer<float>>(40, 100),
-        std::make_unique<ReluLayer<float>>(100),
-        std::make_unique<FullyConnectedLayer<float>>(100, 100),
-        std::make_unique<ReluLayer<float>>(100),
-        std::make_unique<FullyConnectedLayer<float>>(100, 100),
-        std::make_unique<ReluLayer<float>>(100),
-        std::make_unique<FullyConnectedLayer<float>>(100, 10),
-    };
-  }
+#include <chrono>
 
-  // This convolution neural network achieves 5.5% error rate on the MNIST1D dataset
-  size_t outChannels = 50;
-  NeuralNetwork<float, size_t, LOSS::SOFTMAX> cnnModel{
-      std::make_unique<ConvolutionLayer<float>>(3, 1, outChannels, 2),
-      std::make_unique<ReluLayer<float>>(19, outChannels),
-      std::make_unique<ConvolutionLayer<float>>(3, outChannels, outChannels, 2),
-      std::make_unique<ReluLayer<float>>(9, outChannels),
-      std::make_unique<ConvolutionLayer<float>>(3, outChannels, outChannels, 2),
-      std::make_unique<ReluLayer<float>>(4, outChannels),
-      std::make_unique<FullyConnectedLayer<float>>(4 * outChannels, 10),
-  };
+template <typename DType>
+class MyModel {
+  private:
+    ConvolutionLayer1D<DType> l1;
+    ConvolutionLayer1D<DType> l2;
+    ConvolutionLayer1D<DType> l3;
+    LinearLayer<DType> l4;
 
-  cnnModel.setAdamFinalizer(0.005f, 0.9f, 0.999f, 1.0e-6);
-  size_t epoch = 2500;
-  size_t batchSize = 100;
+  public:
+    MyModel(size_t out_channels)
+        : l1{ConvolutionLayer1D<DType>{1, out_channels, 3, 2}},
+          l2{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2}},
+          l3{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2}}, l4{LinearLayer<DType>(
+                                                                               4 * out_channels,
+                                                                               10)} {}
 
-  for (size_t i = 0; i < epoch; i++) {
-    float lossPerEpoch{0.0f};
-
-    trainDataset.randomIter(batchSize, [&](auto batch) {
-      lossPerEpoch += cnnModel.forwardBatch(batch);
-      cnnModel.backward();
-    });
-    std::cout << "Epoch " << i + 1 << " completed. Loss was: " << lossPerEpoch
-              << std::endl;
-
-    size_t goodPredictions{0};
-    for (const auto &[xTest, yTest] : testData) {
-      auto pred = cnnModel.predict(xTest.clone());
-      auto argmaxIt = max_element(pred.matData.begin(), pred.matData.end());
-      size_t argmax =
-          static_cast<size_t>(std::distance(pred.matData.begin(), argmaxIt));
-      if (yTest == argmax) {
-        goodPredictions += 1;
-      }
+    template <typename Expr>
+    auto forward(const Expr &x) {
+        auto y1 = relu(l1.forward(x));
+        auto y2 = relu(l2.forward(y1));
+        auto y3 = relu(l3.forward(y2));
+        return l4.forward(flatten(y3));
     }
-    std::cout << "Epoch " << i + 1 << " error on test data is: "
-              << 100.0f * (1.0f - static_cast<float>(goodPredictions) /
-                                      static_cast<float>(testData.size()))
-              << "%" << std::endl;
-  }
+    auto get_parameters() {
+        // Dummy tensor
+        auto comp_graph = forward(no_grad(Tensor<DType>{{1}}));
+        return comp_graph.get_parameters();
+    }
+};
 
-  return 0;
+int main() {
+    // Run tests
+    run_tests();
+
+    using NNType = float;
+    auto [train_set, test_set] = loadMNIST1D<NNType>();
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    auto model = MyModel<NNType>(/*out_channels=*/50);
+
+    auto optimizer = AdamOptimizer<NNType>(0.01, 0.9, 0.999, 1.0e-6, model.get_parameters());
+    auto loss_computer = SoftMaxLoss<NNType>{};
+
+    NNType accumulated_loss = 0.0;
+
+    size_t batch_size = 100;
+    Variable<NNType, false> x_input_train({batch_size, 1, 40});
+    Variable<NNType, false> x_input_test({1, 1, 40});
+
+    std::vector<size_t> y_input_train(batch_size);
+
+    he_initialization(model.get_parameters());
+
+    for (size_t epoch = 0; epoch < 6 * 50; epoch++) {
+        size_t good_preds = 0;
+        size_t total_preds = 0;
+
+        train_set.randomIter(batch_size, [&](auto batch) {
+            size_t b = 0;
+            for (const auto &[vx, vy] : batch) {
+                for (size_t i = 0; i < 40; i++) {
+                    x_input_train.tensor(b, 0, i) = vx[i];
+                }
+                y_input_train[b] = vy;
+                b += 1;
+            }
+
+            auto y_predicted = model.forward(x_input_train);
+            loss_computer.forward<true>(y_predicted);
+            loss_computer.backward(y_predicted, y_input_train);
+
+            optimizer.optimize(batch_size);
+        });
+
+        test_set.randomIter(1, [&](auto batch) {
+            for (const auto &[vx, vy] : batch) {
+                for (size_t i = 0; i < 40; i++) {
+                    x_input_test.tensor(0, 0, i) = vx[i];
+                }
+
+                auto y_predicted = model.forward(x_input_test);
+                auto idx = loss_computer.forward<false>(y_predicted);
+                good_preds += static_cast<size_t>(idx == vy);
+                total_preds += 1;
+            }
+        });
+        std::cout << "Epoch " << epoch << ", error rate: "
+                  << 100.0f -
+                         static_cast<float>(good_preds) / static_cast<float>(total_preds) * 100.0f
+                  << "%" << std::endl;
+    }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+    std::cout << "Total training time: " << elapsed_seconds.count() << " seconds\n";
+
+    return 0;
 }

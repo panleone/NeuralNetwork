@@ -1,59 +1,43 @@
 #pragma once
 
+#include <algorithm>
 #include <random>
 
-#include "matrix.h"
-#include <algorithm>
-
 template <typename T>
-T randomGaussianInternal(std::mt19937 &gen, const T &mu, const T &sigma) {
-  std::normal_distribution d(mu, sigma);
-  return d(gen);
+class GaussianGenerator {
+    T mu;
+    T sigma;
+    std::normal_distribution<T> d;
+
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+
+  public:
+    GaussianGenerator(const T &mu, const T &sigma) : d{mu, sigma} {};
+    T generate() { return d(gen); }
+};
+
+template <typename RandomIt>
+void shuffle(RandomIt first, RandomIt last) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(first, last, g);
 }
 
+/**
+ * Generate a random number following gaussian distribution with mean mu and variance sigma
+ */
 template <typename T>
-Matrix<T> randomMatrix(size_t N, size_t M, const T &mu, const T &sigma) {
-  std::random_device rd{};
-  std::mt19937 gen{rd()};
-  Matrix<T> res(N, M);
-  for (size_t i = 0; i < N; i++) {
-    for (size_t j = 0; j < M; j++) {
-      res(i, j) = randomGaussianInternal(gen, mu, sigma);
-    }
-  }
-  return res;
+T random_number(const T &mu, const T &sigma) {
+    return GaussianGenerator(mu, sigma).generate();
 }
 
-template <typename T>
-Matrix<T> randomVector(size_t N, const T &mu, const T &sigma) {
-  std::random_device rd{};
-  std::mt19937 gen{rd()};
-  Vector<T> res(N);
-  for (size_t i = 0; i < N; i++) {
-    res(i) = randomGaussianInternal(gen, mu, sigma);
-  }
-  return res;
-}
-
-template <typename T>
-Matrix<T> deterministicConstantMatrix(size_t N, size_t M, const T &val) {
-  Matrix<T> res(N, M);
-  for (size_t i = 0; i < N; i++) {
-    for (size_t j = 0; j < M; j++) {
-      res(i, j) = val;
-    }
-  }
-  return res;
-}
-
-template <typename RandomIt> void shuffle(RandomIt first, RandomIt last) {
-  std::random_device rd;
-  std::mt19937 g(rd());
-  std::shuffle(first, last, g);
-}
-
-template <typename T> T randomNumber(const T &mu, const T &sigma) {
-  std::random_device rd{};
-  std::mt19937 gen{rd()};
-  return randomGaussianInternal(gen, mu, sigma);
+/**
+ * Random positive integer in the range min, max
+ */
+static size_t random_size_t(size_t min, size_t max) {
+    static std::random_device rd;     // non-deterministic random number generator
+    static std::mt19937_64 gen(rd()); // 64-bit Mersenne Twister
+    std::uniform_int_distribution<size_t> dist(min, max);
+    return dist(gen);
 }
