@@ -1,23 +1,28 @@
 CXX=g++
 #CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
 # flags for performance testing
-CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math
+CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math -flto
 LDFLAGS= -lopenblas
-OBJ = src/main.o
+OBJ = src/main.o datasets/mnist1d/load_mnist1d.o
 
-OBJ_TESTS = src/tests/layer_tests.o src/tests/matrix_tests.o src/tests/nn_tests.o \
-			datasets/mnist1d/load_mnist1d.o
+OBJ_TESTS = src/tests/convolution_tests_1d.o src/tests/convolution_tests_2d.o src/tests/nn_tests.o src/tests/test_utils.o src/tests/test_runner.o \
 
+HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.h src/interpreter.h src/loss.h src/random.h \
+		   src/optimizer.h src/tensor.h src/tensor_variable.h src/weight_initializer.h \
+		   datasets/mnist1d/load_mnist1d.h \
+		   src/avx/avx_ops.h src/avx/avx_wrapper.h \
+		   src/layers/convolution_layer.h src/layers/flattener_layer.h src/layers/linear_layer.h src/layers/relu_layer.h \
+		   src/metaprogramming/stack.h \
+		   src/expressions/expression.h src/expressions/expression_base.h src/expressions/expression_base_impl.h src/expressions/operations.h src/expressions/ternary_operator.h src/expressions/variable.h \
+		   src/expressions/unary_operators/flattener_operator.h src/expressions/unary_operators/unary_operator.h \
+		   src/expressions/binary_operators/binary_operator.h src/expressions/binary_operators/binary_operator_simplifier.h src/expressions/binary_operators/common_simplifier.h \
+		   src/expressions/binary_operators/convolution_1d_operator.h src/expressions/binary_operators/convolution_2d_operator.h src/expressions/binary_operators/matmul_operator.h src/expressions/binary_operators/matmul_simplifier.h
 
-HEADERS =  src/matrix.h src/layer.h src/data_loader.h src/neural_network.h src/random.h \
-			src/optimizer.h src/finalizer.h \
-			datasets/mnist1d/load_mnist1d.h
-HEADERS_TESTS = src/tests/layer_tests.h src/tests/matrix_tests.h src/tests/nn_tests.h \
-				src/tests/test_utils.h src/tests/test_runner.h
+HEADERS_TESTS = src/tests/convolution_tests_1d.h src/tests/convolution_tests_2d.h src/tests/nn_tests.h src/tests/test_runner.h src/tests/test_utils.h \
 
 SRC = src/main.cpp \
 	  datasets/mnist1d/load_mnist1d.cpp
-SRC_TESTS = src/tests/layer_tests.cpp src/tests/matrix_tests.cpp src/tests/nn_tests.cpp
+SRC_TESTS = src/tests/convolution_tests_1d.cpp src/tests/convolution_tests_2d.cpp src/tests/nn_tests.cpp src/tests/test_utils.cpp src/tests/test_runner.cpp \
 
 BIN = NeuralNetwork
 
