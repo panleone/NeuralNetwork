@@ -11,5 +11,3 @@ np.savetxt('y_train.txt', y_train, delimiter=' ', fmt='%u')
 
 np.savetxt('x_test.txt', x_test, delimiter=' ', fmt='%.8e')
 np.savetxt('y_test.txt', y_test, delimiter=' ', fmt='%u')
-
-

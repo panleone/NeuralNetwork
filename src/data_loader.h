@@ -4,7 +4,6 @@
 #include <span>
 #include <type_traits>
 
-#include "matrix.h"
 #include "random.h"
 
 template <typename Tx, typename Ty> class DataLoader {
