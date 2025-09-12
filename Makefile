@@ -1,14 +1,14 @@
 CXX=g++
-#CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address
+# CXXFLAGS = -std=c++23 -g -O2 -Wall -Wextra -fsanitize=undefined,address -march=native
 # flags for performance testing
-CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math -flto
+CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math -flto -DNDEBUG
 LDFLAGS= -lopenblas
 OBJ = src/main.o datasets/mnist1d/load_mnist1d.o
 
 OBJ_TESTS = src/tests/convolution_tests_1d.o src/tests/convolution_tests_2d.o src/tests/nn_tests.o src/tests/test_utils.o src/tests/test_runner.o \
 
 HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.h src/interpreter.h src/loss.h src/random.h \
-		   src/optimizer.h src/tensor.h src/tensor_variable.h src/weight_initializer.h \
+		   src/optimizer.h src/tensor.h src/tensor_variable.h src/weight_initializer.h src/serializer.h \
 		   datasets/mnist1d/load_mnist1d.h \
 		   src/avx/avx_ops.h src/avx/avx_wrapper.h \
 		   src/layers/convolution_layer.h src/layers/flattener_layer.h src/layers/linear_layer.h src/layers/relu_layer.h \

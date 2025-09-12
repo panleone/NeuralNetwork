@@ -17,4 +17,15 @@ class LinearLayer {
     auto forward(const Expr &x) {
         return matmul(x, m) + q;
     }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        m.serialize(stream);
+        q.serialize(stream);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        m.deserialize(stream);
+        q.deserialize(stream);
+    }
 };
