@@ -20,4 +20,17 @@ class ConvolutionLayer1D {
     auto forward(const Expr &x) {
         return conv_1d(k, x, q).set_stride(stride);
     }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        k.serialize(stream);
+        q.serialize(stream);
+        stream.write(stride);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        k.deserialize(stream);
+        q.deserialize(stream);
+        stream.read(stride);
+    }
 };

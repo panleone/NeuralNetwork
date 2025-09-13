@@ -33,6 +33,7 @@
 #include "tensor_variable.h"
 
 #include <chrono>
+#include "serializer.h"
 
 template <typename DType>
 class MyModel {
@@ -61,6 +62,21 @@ class MyModel {
         // Dummy tensor
         auto comp_graph = forward(no_grad(Tensor<DType>{{1}}));
         return comp_graph.get_parameters();
+    }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        l1.serialize(stream);
+        l2.serialize(stream);
+        l3.serialize(stream);
+        l4.serialize(stream);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        l1.deserialize(stream);
+        l2.deserialize(stream);
+        l3.deserialize(stream);
+        l4.deserialize(stream);
     }
 };
 

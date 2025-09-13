@@ -14,6 +14,15 @@ class Variable<T, /*requires_gradient=*/false> {
     Tensor<T> tensor;
     Variable(const Tensor<T> &t) : tensor{t} {}
     Variable(std::initializer_list<size_t> shape) : tensor{shape} { tensor.set_zero(); }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        tensor.serialize(stream);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        tensor.deserialize(stream);
+    }
 };
 
 template <typename T>
@@ -25,5 +34,16 @@ class Variable<T, /*requires_gradient=*/true> {
     Variable(std::initializer_list<size_t> shape) : tensor{shape}, gradient{shape} {
         tensor.set_zero();
         gradient.set_zero();
+    }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        tensor.serialize(stream);
+        gradient.serialize(stream);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        tensor.deserialize(stream);
+        gradient.deserialize(stream);
     }
 };

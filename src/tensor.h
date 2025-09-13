@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cstddef>
 #include <span>
-#include <cstring> // fpor std::memcpy
+#include <cstring> // for std::memcpy
 
 #include <iostream>
 #include <array>
@@ -146,6 +146,15 @@ class Shape {
     bool operator!=(const Shape &s) const { return !(*this == s); }
 
     const size_t &operator[](size_t idx) const { return shape[idx]; }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        stream.write(*this);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        stream.read(*this);
+    }
 };
 
 template <typename T>
@@ -215,6 +224,20 @@ class GenericTensorData {
         std::swap(t1.data_size, t2.data_size);
         std::swap(t1.data, t2.data);
         std::swap(t1.ref_counter, t2.ref_counter);
+    }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        stream.write(data_size);
+        stream.write(data, data_size);
+    }
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        stream.read(data_size);
+
+        GenericTensorData deser_obj(data_size);
+        stream.read(deser_obj.data, data_size);
+        *this = deser_obj;
     }
 };
 
@@ -343,6 +366,19 @@ class GenericTensor {
         }
         o << "]\n";
         return o;
+    }
+
+    template <typename Stream>
+    void serialize(Stream &stream) const {
+        shape.serialize(stream);
+        tensor_data.serialize(stream);
+    }
+
+    template <typename Stream>
+    void deserialize(Stream &stream) {
+        shape.deserialize(stream);
+        tensor_data.deserialize(stream);
+        avx_wrapped_size = get_avx_wrapped_size<T>(shape.get_size());
     }
 };
 
