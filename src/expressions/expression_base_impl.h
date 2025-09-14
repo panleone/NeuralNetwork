@@ -5,10 +5,9 @@
 #include "binary_operators/binary_operator.h"
 #include "binary_operators/matmul_operator.h"
 
-#include "ternary_operator.h"
-
-#include "binary_operators/convolution_1d_operator.h"
-#include "binary_operators/convolution_2d_operator.h"
+#include "ternary_operators/ternary_operator.h"
+#include "ternary_operators/convolution_1d_operator.h"
+#include "ternary_operators/convolution_2d_operator.h"
 
 #include "unary_operators/unary_operator.h"
 #include "unary_operators/flattener_operator.h"

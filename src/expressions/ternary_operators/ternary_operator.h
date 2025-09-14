@@ -1,8 +1,8 @@
 #pragma once
 
-#include "expression_base.h"
+#include "../expression_base.h"
 
-#include "../metaprogramming/stack.h"
+#include "../../metaprogramming/stack.h"
 
 template <typename A, typename B, typename C, typename Op>
 requires(std::is_same_v<typename A::DType, typename B::DType>
