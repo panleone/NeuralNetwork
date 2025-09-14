@@ -10,17 +10,17 @@
 #include "avx/avx_wrapper.h"
 
 #include "blas_wrapper.h"
-template <typename T, size_t N>
+template <typename DType, size_t N>
 class DataStack {
     size_t stack_index{0};
-    T avx_stack[N];
+    simd_type<DType> avx_stack[N];
 
   public:
-    void push(T val) {
+    void push(simd_type<DType> val) {
         avx_stack[stack_index] = val;
         ++stack_index;
     }
-    T pop() {
+    simd_type<DType> pop() {
         --stack_index;
         return avx_stack[stack_index];
     }
@@ -89,7 +89,7 @@ requires(std::is_same_v<DType, double> ||
         // TODO: this is in an overestimate of the actual stack size needed
         constexpr size_t registers_stack_size =
             CountStack<Stack<indices...>, ops::VARIABLE_OP>::value;
-        DataStack<simd_type<DType>, registers_stack_size> registers;
+        DataStack<DType, registers_stack_size> registers;
 
         for (size_t i = 0; i < res.get_size(); i += avx_constants::intrinsic_size<DType>) {
             data_pointers.reset();

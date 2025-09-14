@@ -72,9 +72,9 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
 
     struct Simplify {
         using Type = DTernExprOp<typename A::Simplify::Type,
-                                typename B::Simplify::Type,
-                                typename C::Simplify::Type,
-                                DApConv2d>;
+                                 typename B::Simplify::Type,
+                                 typename C::Simplify::Type,
+                                 DApConv2d>;
     };
 
     void compute_temporaries_for_eval() {

@@ -161,8 +161,8 @@ static void convolution_operator_2d_tests() {
         he_initialization(conv_parameters);
 
         auto layer_res = res.forward();
-        auto layer_res_simulated =
-            naive_2d_convolution_forward(kernel.tensor, x_data.tensor, bias.tensor, STRIDE_HEIGHT, STRIDE_WIDTH);
+        auto layer_res_simulated = naive_2d_convolution_forward(
+            kernel.tensor, x_data.tensor, bias.tensor, STRIDE_HEIGHT, STRIDE_WIDTH);
 
         if (!check_tensor_equality<double>(layer_res, layer_res_simulated, eps_threshold)) {
             std::ostringstream oss;
