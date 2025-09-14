@@ -1,6 +1,6 @@
 #pragma once
 
-#include "binary_operator.h"
+#include "../binary_operators/binary_operator.h"
 #include "../../blas_wrapper.h"
 
 #include <cassert>
