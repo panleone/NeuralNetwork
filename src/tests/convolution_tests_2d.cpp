@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include <sstream>
+#include <tuple>
 
 static void convolution_operator_2d_tests();
 
@@ -15,6 +16,7 @@ void convolution_tests_2d() { convolution_operator_2d_tests(); }
  */
 static Tensor<double> naive_2d_convolution_forward(ConstTensor<double> kernel,
                                                    ConstTensor<double> x,
+                                                   ConstTensor<double> bias,
                                                    size_t STRIDE_HEIGHT,
                                                    size_t STRIDE_WIDTH) {
     assert(kernel.get_shape().get_dimension() == 4);
@@ -46,8 +48,9 @@ static Tensor<double> naive_2d_convolution_forward(ConstTensor<double> kernel,
     for (size_t b = 0; b < BATCH_SIZE; ++b) {
         for (size_t oc = 0; oc < OUT_CHANNELS; ++oc) {
             for (size_t eff_h = 0; eff_h < EFFECTIVE_HEIGHT; ++eff_h) {
-                for (size_t ker_h = 0; ker_h < KERNEL_HEIGHT; ++ker_h) {
-                    for (size_t eff_w = 0; eff_w < EFFECTIVE_WIDTH; ++eff_w) {
+                for (size_t eff_w = 0; eff_w < EFFECTIVE_WIDTH; ++eff_w) {
+                    res(b, oc, eff_h, eff_w) = bias(oc);
+                    for (size_t ker_h = 0; ker_h < KERNEL_HEIGHT; ++ker_h) {
                         for (size_t ker_w = 0; ker_w < KERNEL_WIDTH; ++ker_w) {
                             for (size_t ic = 0; ic < IN_CHANNELS; ++ic) {
                                 res(b, oc, eff_h, eff_w) +=
@@ -68,7 +71,7 @@ static Tensor<double> naive_2d_convolution_forward(ConstTensor<double> kernel,
 /**
  * And same for the back propagation
  */
-static std::pair<Tensor<double>, Tensor<double>>
+static std::tuple<Tensor<double>, Tensor<double>, Tensor<double>>
 naive_2d_convolution_backward(ConstTensor<double> kernel,
                               ConstTensor<double> x,
                               ConstTensor<double> grad_out,
@@ -93,17 +96,23 @@ naive_2d_convolution_backward(ConstTensor<double> kernel,
     Tensor<double> grad_kernel{{OUT_CHANNELS, IN_CHANNELS, KERNEL_HEIGHT, KERNEL_WIDTH}};
     grad_kernel.set_zero();
 
+    Tensor<double> grad_bias{{OUT_CHANNELS}};
+    grad_bias.set_zero();
+
     Tensor<double> grad_x{{BATCH_SIZE, IN_CHANNELS, FEATURE_HEIGHT, FEATURE_WIDTH}};
     grad_x.set_zero();
 
     for (size_t b = 0; b < BATCH_SIZE; ++b) {
         for (size_t oc = 0; oc < OUT_CHANNELS; ++oc) {
             for (size_t eff_h = 0; eff_h < EFFECTIVE_HEIGHT; ++eff_h) {
-                for (size_t ker_h = 0; ker_h < KERNEL_HEIGHT; ++ker_h) {
-                    for (size_t eff_w = 0; eff_w < EFFECTIVE_WIDTH; ++eff_w) {
+                for (size_t eff_w = 0; eff_w < EFFECTIVE_WIDTH; ++eff_w) {
+                    double grad = grad_out(b, oc, eff_h, eff_w);
+                    grad_bias(oc) += grad;
+
+                    for (size_t ker_h = 0; ker_h < KERNEL_HEIGHT; ++ker_h) {
                         for (size_t ker_w = 0; ker_w < KERNEL_WIDTH; ++ker_w) {
                             for (size_t ic = 0; ic < IN_CHANNELS; ++ic) {
-                                double grad = grad_out(b, oc, eff_h, eff_w);
+
                                 grad_kernel(oc, ic, ker_h, ker_w) +=
                                     grad * x(b,
                                              ic,
@@ -122,7 +131,7 @@ naive_2d_convolution_backward(ConstTensor<double> kernel,
         }
     }
 
-    return {grad_kernel, grad_x};
+    return {grad_kernel, grad_x, grad_bias};
 }
 
 static void convolution_operator_2d_tests() {
@@ -145,14 +154,15 @@ static void convolution_operator_2d_tests() {
 
         Variable<double, true> kernel({OUT_CHANNELS, IN_CHANNELS, KERNEL_HEIGHT, KERNEL_WIDTH});
         Variable<double, true> x_data({BATCH_SIZE, IN_CHANNELS, FEATURES_HEIGHT, FEATURES_WIDTH});
+        Variable<double, true> bias({OUT_CHANNELS});
 
-        auto res = conv_2d(kernel, x_data).set_stride(STRIDE_HEIGHT, STRIDE_WIDTH);
+        auto res = conv_2d(kernel, x_data, bias).set_stride(STRIDE_HEIGHT, STRIDE_WIDTH);
         const auto &conv_parameters = res.get_parameters();
         he_initialization(conv_parameters);
 
         auto layer_res = res.forward();
         auto layer_res_simulated =
-            naive_2d_convolution_forward(kernel.tensor, x_data.tensor, STRIDE_HEIGHT, STRIDE_WIDTH);
+            naive_2d_convolution_forward(kernel.tensor, x_data.tensor, bias.tensor, STRIDE_HEIGHT, STRIDE_WIDTH);
 
         if (!check_tensor_equality<double>(layer_res, layer_res_simulated, eps_threshold)) {
             std::ostringstream oss;
@@ -164,7 +174,7 @@ static void convolution_operator_2d_tests() {
         // Backpropagation
         Tensor<double> gradient = layer_res.clone();
         gradient.set_constant(1.0);
-        const auto &[kernel_grad, x_grad] = naive_2d_convolution_backward(
+        const auto &[kernel_grad, x_grad, bias_grad] = naive_2d_convolution_backward(
             kernel.tensor, x_data.tensor, gradient, STRIDE_HEIGHT, STRIDE_WIDTH);
         res.backward(gradient);
         if (!check_tensor_equality<double>(
@@ -179,6 +189,13 @@ static void convolution_operator_2d_tests() {
             std::ostringstream oss;
             oss << "[CONV_2D_TEST]: x gradient mismatch (actual, simulated)=(" << x_grad << ", "
                 << conv_parameters[1].gradient << ")";
+            throw std::runtime_error(oss.str());
+        }
+
+        if (!check_tensor_equality<double>(bias_grad, conv_parameters[2].gradient, eps_threshold)) {
+            std::ostringstream oss;
+            oss << "[CONV_2D_TEST]: bias gradient mismatch (actual, simulated)=(" << bias_grad
+                << ", " << conv_parameters[2].gradient << ")";
             throw std::runtime_error(oss.str());
         }
     }
