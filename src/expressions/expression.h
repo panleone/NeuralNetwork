@@ -98,7 +98,7 @@ requires(HasToDexpr<A>) &&
 
 template <typename A, typename B, typename C>
 requires(HasToDexpr<A>) &&
-(HasToDexpr<B>)&&(HasToDexpr<C>)auto conv_2d(const A &x, const B &y, const C &z) {
+    (HasToDexpr<B>)&&(HasToDexpr<C>)auto conv_2d(const A &x, const B &y, const C &z) {
     return conv_2d(to_dexpr(x), to_dexpr(y), to_dexpr(z));
 }
 
@@ -158,7 +158,7 @@ auto conv_1d(const DExpr<A> &x, const DExpr<B> &y, const DExpr<C> &z) {
 template <typename A, typename B, typename C>
 auto conv_2d(const DExpr<A> &x, const DExpr<B> &y, const DExpr<C> &z) {
     return DTernExprOp<A, B, C, DApConv2d>(
-            static_cast<const A &>(x), static_cast<const B &>(y), static_cast<const C &>(z));
+        static_cast<const A &>(x), static_cast<const B &>(y), static_cast<const C &>(z));
 }
 
 template <typename A>
