@@ -57,6 +57,7 @@ namespace ops {
     constexpr size_t FLIP_SIGN = 18;
     constexpr size_t SQRT = 19;
     constexpr size_t FLATTEN = 20;
+    constexpr size_t INDEXER = 21;
 } // namespace ops
 
 namespace avx_constants {

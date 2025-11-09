@@ -11,6 +11,7 @@
 
 #include "unary_operators/unary_operator.h"
 #include "unary_operators/flattener_operator.h"
+#include "unary_operators/indexing_operator.h"
 #include "variable.h"
 
 template <typename Expr>
