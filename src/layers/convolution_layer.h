@@ -11,14 +11,17 @@ class ConvolutionLayer1D {
     Variable<DType, true> q;
 
     size_t stride;
+    size_t padding;
 
   public:
-    ConvolutionLayer1D(size_t in_channels, size_t out_channels, size_t kernel_size, size_t stride)
-        : k{{out_channels, in_channels, kernel_size}}, q{{out_channels}}, stride{stride} {}
+    ConvolutionLayer1D(
+        size_t in_channels, size_t out_channels, size_t kernel_size, size_t stride, size_t padding)
+        : k{{out_channels, in_channels, kernel_size}}, q{{out_channels}}, stride{stride},
+          padding{padding} {}
 
     template <typename Expr>
     auto forward(const Expr &x) {
-        return conv_1d(k, x, q).set_stride(stride);
+        return conv_1d(k, x, q).set_stride(stride).set_padding(padding);
     }
 
     template <typename Stream>
@@ -26,12 +29,14 @@ class ConvolutionLayer1D {
         k.serialize(stream);
         q.serialize(stream);
         stream.write(stride);
+        stream.write(padding);
     }
     template <typename Stream>
     void deserialize(Stream &stream) {
         k.deserialize(stream);
         q.deserialize(stream);
         stream.read(stride);
+        stream.read(padding);
     }
 };
 
