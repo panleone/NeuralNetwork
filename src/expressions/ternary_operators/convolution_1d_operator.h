@@ -29,6 +29,9 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
 
     // Stride of the convolution
     size_t STRIDE{1};
+    // padding of the convolution
+    // For the moment only zero-padding supported
+    size_t PADDING{0};
 
     // those variables get a non-zero value in the forward step.
     // We need to cache them for the backpropagation.
@@ -168,8 +171,18 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         FEATURE_SIZE = t_shape_data[2];
 
         // Residual number of features after the application of the 1d convolution
-        assert(FEATURE_SIZE >= KERNEL_SIZE);
-        EFFECTIVE_WIDTH = (FEATURE_SIZE - KERNEL_SIZE) / STRIDE + 1;
+        assert(FEATURE_SIZE + 2 * PADDING >= KERNEL_SIZE);
+        EFFECTIVE_WIDTH = (FEATURE_SIZE - KERNEL_SIZE + 2 * PADDING) / STRIDE + 1;
+
+        Tensor<DType> tensor_padded({BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING});
+        tensor_padded.set_zero();
+        for (size_t b = 0; b < BATCH_SIZE; b++) {
+            for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
+                for (size_t f = 0; f < FEATURE_SIZE; f++) {
+                    tensor_padded(b, ic, PADDING + f) = tensor(b, ic, f);
+                }
+            }
+        }
 
         Tensor<DType> tensor_im2col({BATCH_SIZE * EFFECTIVE_WIDTH, IN_CHANNELS * KERNEL_SIZE + 1});
         for (size_t b = 0; b < BATCH_SIZE; b++) {
@@ -177,7 +190,7 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
                 for (size_t k = 0; k < KERNEL_SIZE; k++) {
                     for (size_t w = 0; w < EFFECTIVE_WIDTH; w++) {
                         tensor_im2col(b * EFFECTIVE_WIDTH + w, 1 + k + ic * KERNEL_SIZE) =
-                            tensor(b, ic, k + w * STRIDE);
+                            tensor_padded(b, ic, k + w * STRIDE);
                     }
                 }
             }
@@ -255,16 +268,25 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         assert(BATCH_SIZE * EFFECTIVE_WIDTH == t_shape_data[0]);
         assert(1 + IN_CHANNELS * KERNEL_SIZE == t_shape_data[1]);
 
-        Tensor<DType> grad_x{{BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE}};
-        grad_x.set_zero();
+        Tensor<DType> grad_x_padded{{BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING}};
+        grad_x_padded.set_zero();
 
         for (size_t b = 0; b < BATCH_SIZE; b++) {
             for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
                 for (size_t k = 0; k < KERNEL_SIZE; k++) {
                     for (size_t w = 0; w < EFFECTIVE_WIDTH; w++) {
-                        grad_x(b, ic, k + w * STRIDE) +=
+                        grad_x_padded(b, ic, k + w * STRIDE) +=
                             grad_x_matrix(b * EFFECTIVE_WIDTH + w, 1 + k + ic * KERNEL_SIZE);
                     }
+                }
+            }
+        }
+
+        Tensor<DType> grad_x{{BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE}};
+        for (size_t b = 0; b < BATCH_SIZE; b++) {
+            for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
+                for (size_t f = 0; f < FEATURE_SIZE; f++) {
+                    grad_x(b, ic, f) = grad_x_padded(b, ic, f + PADDING);
                 }
             }
         }
@@ -298,6 +320,10 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
 
     This &set_stride(size_t stride) {
         STRIDE = stride;
+        return *this;
+    }
+    This &set_padding(size_t padding) {
+        PADDING = padding;
         return *this;
     }
 };
