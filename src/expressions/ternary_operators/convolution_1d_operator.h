@@ -137,7 +137,7 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         IN_CHANNELS = kernel_shape_data[1];
         KERNEL_SIZE = kernel_shape_data[2];
 
-        assert(OUT_CHANNELS = bias_shape_data[0]);
+        assert(OUT_CHANNELS == bias_shape_data[0]);
 
         Tensor<DType> res({OUT_CHANNELS, 1 + IN_CHANNELS * KERNEL_SIZE});
 
