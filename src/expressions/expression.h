@@ -121,6 +121,9 @@ template <typename A>
 requires(HasToDexpr<A>) auto flatten(const A &x) { return flatten(to_dexpr(x)); }
 
 template <typename A>
+requires(HasToDexpr<A>) auto indexer(const A &x, size_t idx) { return indexer(to_dexpr(x), idx); }
+
+template <typename A>
 requires(HasToDexpr<A>) auto operator-(const A &x) { return -to_dexpr(x); }
 
 template <typename A, typename B>
@@ -192,6 +195,11 @@ auto sqrt(const DExpr<A> &x) {
 template <typename A>
 auto flatten(const DExpr<A> &x) {
     return DUnaryExprOp<A, DApFlatten>(static_cast<const A &>(x));
+}
+
+template <typename A>
+auto indexer(const DExpr<A> &x, size_t idx) {
+    return DUnaryExprOp<A, DApIndexer>(static_cast<const A &>(x), idx);
 }
 
 template <typename A>

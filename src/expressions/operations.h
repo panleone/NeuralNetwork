@@ -87,3 +87,8 @@ class DApFlatten {
   public:
     static constexpr size_t STACK_VAL = ops::FLATTEN;
 };
+
+class DApIndexer {
+  public:
+    static constexpr size_t STACK_VAL = ops::INDEXER;
+};
