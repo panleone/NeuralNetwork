@@ -75,6 +75,9 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
         Tensor<DType> a_grad = grad.clone();
         Tensor<DType> b_grad = grad.clone();
 
+        ConstTensor<DType> ac_grad = ConstTensor<DType>(a_grad);
+        ConstTensor<DType> bc_grad = ConstTensor<DType>(b_grad);
+
         ConstTensor<DType> a_prev =
             a_.template compute_temporaries_for_backprop</*use_cache=*/true>();
         ConstTensor<DType> b_prev =
@@ -84,12 +87,12 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
             // Nothing to do
         } else if constexpr (std::is_same_v<Op, DApDiff>) {
             InterpretInternal<DType, Stack<ops::VARIABLE_OP, ops::FLIP_SIGN>>::eval(
-                make_data_buffer(b_grad), b_grad);
+                make_data_buffer<DType>(b_grad), b_grad);
         } else if constexpr (std::is_same_v<Op, DApMul>) {
             InterpretInternal<DType, Stack<ops::VARIABLE_OP, ops::VARIABLE_OP, ops::MUL_OP>>::eval(
-                make_data_buffer(a_grad, b_prev), a_grad);
+                make_data_buffer<DType>(ac_grad, b_prev), a_grad);
             InterpretInternal<DType, Stack<ops::VARIABLE_OP, ops::VARIABLE_OP, ops::MUL_OP>>::eval(
-                make_data_buffer(b_grad, a_prev), b_grad);
+                make_data_buffer<DType>(bc_grad, a_prev), b_grad);
         } else {
             static_assert(std::is_same_v<Op, DApSum>);
         }
