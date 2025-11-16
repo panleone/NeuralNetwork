@@ -10,6 +10,26 @@ static void convolution_operator_1d_tests();
 
 void convolution_tests_1d() { convolution_operator_1d_tests(); }
 
+static Tensor<double> add_x_padding(ConstTensor<double> x, size_t PADDING) {
+    const auto &x_shape = x.get_shape().get_shape();
+
+    const size_t BATCH_SIZE = x_shape[0];
+    const size_t IN_CHANNELS = x_shape[1];
+    const size_t FEATURE_SIZE = x_shape[2];
+
+    Tensor<double> x_padded({BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING});
+    x_padded.set_zero();
+    for (size_t b = 0; b < BATCH_SIZE; b++) {
+        for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
+            for (size_t f = 0; f < FEATURE_SIZE; f++) {
+                x_padded(b, ic, PADDING + f) = x(b, ic, f);
+            }
+        }
+    }
+
+    return x_padded;
+}
+
 /**
  * To test the correctness of the convolution operator, We check the result against this manual
  * naive implementation
@@ -39,16 +59,7 @@ static Tensor<double> naive_1d_convolution_forward(ConstTensor<double> kernel,
     assert(FEATURE_SIZE + 2 * PADDING >= KERNEL_SIZE);
     size_t EFFECTIVE_WIDTH = (FEATURE_SIZE - KERNEL_SIZE + 2 * PADDING) / STRIDE + 1;
 
-    Tensor<double> x_padded({BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING});
-    x_padded.set_zero();
-    for (size_t b = 0; b < BATCH_SIZE; b++) {
-        for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
-            for (size_t f = 0; f < FEATURE_SIZE; f++) {
-                x_padded(b, ic, PADDING + f) = x(b, ic, f);
-            }
-        }
-    }
-
+    Tensor<double> x_padded = add_x_padding(x, PADDING);
     Tensor<double> res{{BATCH_SIZE, OUT_CHANNELS, EFFECTIVE_WIDTH}};
 
     for (size_t b = 0; b < BATCH_SIZE; ++b) {
@@ -94,16 +105,7 @@ naive_1d_convolution_backward(ConstTensor<double> kernel,
     Tensor<double> grad_bias{{OUT_CHANNELS}};
     grad_bias.set_zero();
 
-    Tensor<double> x_padded({BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING});
-    x_padded.set_zero();
-    for (size_t b = 0; b < BATCH_SIZE; b++) {
-        for (size_t ic = 0; ic < IN_CHANNELS; ic++) {
-            for (size_t f = 0; f < FEATURE_SIZE; f++) {
-                x_padded(b, ic, PADDING + f) = x(b, ic, f);
-            }
-        }
-    }
-
+    Tensor<double> x_padded = add_x_padding(x, PADDING);
     Tensor<double> grad_x_padded{{BATCH_SIZE, IN_CHANNELS, FEATURE_SIZE + 2 * PADDING}};
     grad_x_padded.set_zero();
 
