@@ -45,11 +45,10 @@ class MyModel {
 
   public:
     MyModel(size_t out_channels)
-        : l1{ConvolutionLayer1D<DType>{1, out_channels, 3, 2}},
-          l2{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2}},
-          l3{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2}}, l4{LinearLayer<DType>(
-                                                                               4 * out_channels,
-                                                                               10)} {}
+        : l1{ConvolutionLayer1D<DType>{1, out_channels, 3, 2, /*padding=*/0}},
+          l2{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2, /*padding=*/0}},
+          l3{ConvolutionLayer1D<DType>{out_channels, out_channels, 3, 2, /*padding=*/0}},
+          l4{LinearLayer<DType>(4 * out_channels, 10)} {}
 
     template <typename Expr>
     auto forward(const Expr &x) {
