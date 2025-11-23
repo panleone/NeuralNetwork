@@ -144,6 +144,7 @@ class Interpreter {
 
 // TODO: optimize
 // TODO: put this function in another file?
+// TODO: check that shape matches here, or this can output garbage
 template <typename DType>
 inline Tensor<DType> reduce_axis(Tensor<DType> tensor, Shape target_shape) {
     Tensor<DType> res{std::move(target_shape)};
