@@ -31,8 +31,6 @@ class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
         current_stack.push_back_variable(res);
     }
 
-    void get_parameters_internal(auto &res) const { a_.get_parameters_internal(res); }
-
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, DApFlatten>;
     };
@@ -65,5 +63,16 @@ class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
         grad_out[index] = grad[0];
         grad_out.wrap_for_broadcasting();
         a_.backward_internal(grad_out);
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
     }
 };

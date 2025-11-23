@@ -39,8 +39,6 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
         a_.collect_tensor_handles(current_stack);
     }
 
-    void get_parameters_internal(auto &res) const { a_.get_parameters_internal(res); }
-
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, Op>;
     };
@@ -78,5 +76,16 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
         }
 
         a_.backward_internal(a_grad);
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
     }
 };

@@ -64,11 +64,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     void collect_tensor_handles(auto &current_stack) const {
         current_stack.push_back_variable(res);
     }
-    void get_parameters_internal(auto &res) const {
-        a_.get_parameters_internal(res);
-        b_.get_parameters_internal(res);
-        c_.get_parameters_internal(res);
-    }
 
     template <bool recursive>
     struct Flatten {
@@ -131,6 +126,21 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         a_.backward_internal(a_grad);
         b_.backward_internal(b_grad);
         c_.backward_internal(c_grad);
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+        c_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+        c_.traverse(v);
     }
 
     // we implement the convolution with the im2col transformation

@@ -14,12 +14,15 @@
 #include "unary_operators/indexing_operator.h"
 #include "variable.h"
 
+#include "visitors/visitors.h"
+
 template <typename Expr>
 auto DExpr<Expr>::get_parameters() const {
     using T = IntrinsicType::Type;
-    std::vector<Variable<T, true>> res{};
-    static_cast<const Expr &>(*this).get_parameters_internal(res);
-    return res;
+    GetParametersVisitor<T> visitor{};
+
+    static_cast<const Expr &>(*this).traverse(visitor);
+    return visitor.res;
 }
 
 template <typename Expr>

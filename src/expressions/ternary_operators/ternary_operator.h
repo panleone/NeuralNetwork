@@ -44,16 +44,24 @@ requires(std::is_same_v<typename A::DType, typename B::DType>
         c_.collect_tensor_handles(current_stack);
     };
 
-    void get_parameters_internal(
-        std::vector<std::pair<const Tensor<DType> &, const Tensor<DType> &>> &res) const {
-        a_.get_parameters_internal(res);
-        b_.get_parameters_internal(res);
-        c_.get_parameters_internal(res);
-    }
-
     void compute_temporaries_for_eval() {
         a_.compute_temporaries_for_eval();
         b_.compute_temporaries_for_eval();
         c_.compute_temporaries_for_eval();
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+        c_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+        c_.traverse(v);
     }
 };

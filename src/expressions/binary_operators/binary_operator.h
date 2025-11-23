@@ -45,11 +45,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
         b_.collect_tensor_handles(current_stack);
     }
 
-    void get_parameters_internal(auto &res) const {
-        a_.get_parameters_internal(res);
-        b_.get_parameters_internal(res);
-    }
-
     struct Simplify {
         using Type = typename BinarySimplifier<This>::Type;
     };
@@ -99,5 +94,18 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
 
         a_.backward_internal(reduce_axis(a_grad, a_prev.get_shape()));
         b_.backward_internal(reduce_axis(b_grad, b_prev.get_shape()));
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
     }
 };

@@ -33,12 +33,6 @@ requires(std::is_same_v<T, double> || std::is_same_v<T, float>) class DExprTenso
         current_stack.push_back_variable(t_.tensor);
     }
 
-    void get_parameters_internal(std::vector<Variable<DType, true>> &res) const {
-        if constexpr (require_gradient) {
-            res.push_back(t_);
-        }
-    }
-
     struct Simplify {
         using Type = This;
     };
@@ -55,5 +49,14 @@ requires(std::is_same_v<T, double> || std::is_same_v<T, float>) class DExprTenso
             InterpretInternal<DType, Stack<ops::VARIABLE_OP, ops::VARIABLE_OP, ops::SUM_OP>>::eval(
                 make_data_buffer<DType>(t_.gradient, gradient), t_.gradient);
         }
+    }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
     }
 };

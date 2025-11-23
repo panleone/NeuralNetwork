@@ -120,4 +120,9 @@ class DExpr {
      * Count the number of leaves in the computational graph
      */
     static consteval size_t get_num_tensors() { return Expr::get_num_tensors(); }
+
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        return static_cast<Expr &>(*this).traverse(v);
+    }
 };
