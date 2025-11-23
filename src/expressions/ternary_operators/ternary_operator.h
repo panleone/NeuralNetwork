@@ -12,6 +12,8 @@ class DTernaryExprCommonData {
     B b_;
     C c_;
 
+    ConstTensor<typename A::DType> res{};
+
   public:
     DTernaryExprCommonData(const A &a, const B &b, const C &c) : a_{a}, b_{b}, c_{c} {}
     template <typename Visitor>

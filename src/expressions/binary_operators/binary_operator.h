@@ -7,9 +7,11 @@
 // Common data to all binary operators
 template <typename A, typename B, typename Op>
 class DBinaryExprCommonData {
-  public:
+  protected:
     A a_;
     B b_;
+
+    ConstTensor<typename A::DType> res{};
 
   public:
     DBinaryExprCommonData(const A &a, const B &b) : a_{a}, b_{b} {}
@@ -38,8 +40,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
   private:
     using DBinaryExprCommonData<A, B, Op>::a_;
     using DBinaryExprCommonData<A, B, Op>::b_;
-    // For backpropagation
-    ConstTensor<DType> res{};
     using This = DBinExprOp<A, B, Op>;
 
   public:
@@ -85,10 +85,10 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
             ConstTensor<DType> b_res = b_.template compute_temporaries_for_backprop<use_cache>();
 
             assert(Shape::are_broadcastable(a_res.get_shape(), b_res.get_shape()));
-            res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
+            this->res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
                 make_data_buffer<DType>(a_res, b_res));
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {

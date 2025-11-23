@@ -13,6 +13,7 @@ template <typename A, typename Op>
 class DUnaryExprCommonData {
   public:
     A a_;
+    ConstTensor<typename A::DType> res{};
 
   public:
     DUnaryExprCommonData(const A &a) : a_{a} {}
@@ -36,8 +37,6 @@ class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExpr
 
   private:
     using DUnaryExprCommonData<A, Op>::a_;
-    // For back propagation
-    ConstTensor<DType> res{};
 
   public:
     using Operand = A;
@@ -70,10 +69,10 @@ class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExpr
         if constexpr (!use_cache) {
             ConstTensor<DType> operand = a_.template compute_temporaries_for_backprop<use_cache>();
 
-            res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
+            this->res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
                 make_data_buffer<DType>(operand));
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {

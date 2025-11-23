@@ -13,8 +13,6 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
   private:
     using DUnaryExprCommonData<A, DApIndexer>::a_;
     size_t index;
-    // For back propagation
-    Tensor<DType> res{1};
     Shape in_shape{};
 
   public:
@@ -30,20 +28,25 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
 
     static consteval size_t get_num_tensors() { return 1; }
     void collect_tensor_handles(auto &current_stack) const {
-        current_stack.push_back_variable(res);
+        current_stack.push_back_variable(this->res);
     }
 
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, DApIndexer>;
     };
 
+    ConstTensor<DType> extract_index(ConstTensor<DType> t) {
+        Tensor<DType> t_res{{1}};
+        t_res[0] = t[index];
+        t_res.wrap_for_broadcasting();
+        return t_res;
+    }
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;
 
         a_.compute_temporaries_for_eval();
-
-        res[0] = Interpreter<typename Simplify::Type::Operand>::const_interpret(a_)[index];
-        res.wrap_for_broadcasting();
+        this->res =
+            extract_index(Interpreter<typename Simplify::Type::Operand>::const_interpret(a_));
     }
 
     template <bool use_cache>
@@ -52,11 +55,10 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
             ConstTensor<DType> operand = a_.template compute_temporaries_for_backprop<use_cache>();
             auto tmp = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
                 make_data_buffer<DType>(operand));
-            res[0] = tmp[index];
-            res.wrap_for_broadcasting();
+            this->res = extract_index(tmp);
             in_shape = tmp.get_shape();
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {
