@@ -10,13 +10,15 @@
 template <typename A, typename B, bool tLeft, bool tRight>
 requires(std::is_same_v<typename A::DType,
                         typename B::DType>) class DBinExprOp<A, B, DApMatMul<tLeft, tRight>>
-    : public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
+    : public DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>,
+      public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
   public:
     using DType = typename A::DType;
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::traverse;
 
   private:
-    A a_;
-    B b_;
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::a_;
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::b_;
     // Result of the mat mul
     ConstTensor<DType> res{};
     using This = DBinExprOp<A, B, DApMatMul<tLeft, tRight>>;
@@ -29,7 +31,8 @@ requires(std::is_same_v<typename A::DType,
     static constexpr bool transpose_left = tLeft;
     static constexpr bool transpose_right = tRight;
 
-    DBinExprOp(const A &a, const B &b) : a_{a}, b_{b} {}
+    DBinExprOp(const A &a, const B &b)
+        : DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>{a, b} {}
 
     static consteval size_t get_num_tensors() { return 1; }
 
@@ -86,18 +89,5 @@ requires(std::is_same_v<typename A::DType,
 
         a_.backward_internal(a_grad);
         b_.backward_internal(b_grad);
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
     }
 };

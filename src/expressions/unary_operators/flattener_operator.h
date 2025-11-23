@@ -4,12 +4,15 @@
 
 // Partial specialization for the Flatten operator
 template <typename A>
-class DUnaryExprOp<A, DApFlatten> : public DExpr<DUnaryExprOp<A, DApFlatten>> {
+class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
+                                    public DExpr<DUnaryExprOp<A, DApFlatten>> {
   public:
     using DType = typename A::DType;
+    using DUnaryExprCommonData<A, DApFlatten>::traverse;
 
   private:
-    A a_;
+    using DUnaryExprCommonData<A, DApFlatten>::a_;
+
     // For back propagation
     ConstTensor<DType> res{};
     Shape in_shape{};
@@ -18,7 +21,7 @@ class DUnaryExprOp<A, DApFlatten> : public DExpr<DUnaryExprOp<A, DApFlatten>> {
     using Operand = A;
     using Operator = DApFlatten;
 
-    DUnaryExprOp(const A &a) : a_{a} {}
+    DUnaryExprOp(const A &a) : DUnaryExprCommonData<A, DApFlatten>{a} {}
 
     template <bool recursive>
     struct Flatten {
@@ -71,16 +74,5 @@ class DUnaryExprOp<A, DApFlatten> : public DExpr<DUnaryExprOp<A, DApFlatten>> {
         a_grad.set_shape(in_shape);
 
         a_.backward_internal(a_grad);
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
     }
 };

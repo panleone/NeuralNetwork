@@ -8,13 +8,34 @@
 template <typename T, typename U>
 requires(std::is_same_v<T, double> || std::is_same_v<T, float>) struct InterpretInternal;
 
+// Common data to all unary operators
 template <typename A, typename Op>
-class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
+class DUnaryExprCommonData {
+  public:
+    A a_;
+
+  public:
+    DUnaryExprCommonData(const A &a) : a_{a} {}
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
+    }
+};
+
+template <typename A, typename Op>
+class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExprOp<A, Op>> {
   public:
     using DType = typename A::DType;
+    using DUnaryExprCommonData<A, Op>::traverse;
 
   private:
-    A a_;
+    using DUnaryExprCommonData<A, Op>::a_;
     // For back propagation
     ConstTensor<DType> res{};
 
@@ -22,7 +43,7 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
     using Operand = A;
     using Operator = Op;
 
-    DUnaryExprOp(const A &a) : a_{a} {}
+    DUnaryExprOp(const A &a) : DUnaryExprCommonData<A, Op>{a} {}
 
     template <bool recursive>
     struct Flatten {
@@ -76,16 +97,5 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
         }
 
         a_.backward_internal(a_grad);
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
     }
 };

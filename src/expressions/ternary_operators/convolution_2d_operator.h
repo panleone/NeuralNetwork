@@ -10,17 +10,19 @@
  */
 template <typename A, typename B, typename C>
 requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp<A, B, C, DApConv2d>
-    : public DExpr<DTernExprOp<A, B, C, DApConv2d>> {
+    : public DTernaryExprCommonData<A, B, C, DApConv2d>,
+      public DExpr<DTernExprOp<A, B, C, DApConv2d>> {
   public:
     using DType = typename A::DType;
+    using DTernaryExprCommonData<A, B, C, DApConv2d>::traverse;
 
   private:
     // a_ is the kernel
-    A a_;
+    using DTernaryExprCommonData<A, B, C, DApConv2d>::a_;
     // b_ is the data buffer on which we apply the kernel
-    B b_;
+    using DTernaryExprCommonData<A, B, C, DApConv2d>::b_;
     // c_ is the bias vector
-    C c_;
+    using DTernaryExprCommonData<A, B, C, DApConv2d>::c_;
     // Result of the 2d convolution
     ConstTensor<DType> res{};
     // We also cache the kernel and x in their im2col version
@@ -57,7 +59,8 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     using Middle = B;
     using Right = C;
 
-    DTernExprOp(const A &a, const B &b, const C &c) : a_{a}, b_{b}, c_{c} {}
+    DTernExprOp(const A &a, const B &b, const C &c)
+        : DTernaryExprCommonData<A, B, C, DApConv2d>{a, b, c} {}
 
     static consteval size_t get_num_tensors() { return 1; }
 
@@ -126,21 +129,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         a_.backward_internal(a_grad);
         b_.backward_internal(b_grad);
         c_.backward_internal(c_grad);
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-        c_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-        c_.traverse(v);
     }
 
     // we implement the convolution with the im2col transformation

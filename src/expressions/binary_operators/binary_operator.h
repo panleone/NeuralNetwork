@@ -4,15 +4,40 @@
 #include "binary_operator_simplifier.h"
 #include "../../interpreter.h"
 
+// Common data to all binary operators
 template <typename A, typename B, typename Op>
-requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
-    : public DExpr<DBinExprOp<A, B, Op>> {
+class DBinaryExprCommonData {
   public:
-    using DType = typename A::DType;
-
-  private:
     A a_;
     B b_;
+
+  public:
+    DBinaryExprCommonData(const A &a, const B &b) : a_{a}, b_{b} {}
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        a_.traverse(v);
+        b_.traverse(v);
+    }
+};
+
+template <typename A, typename B, typename Op>
+requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
+    : public DBinaryExprCommonData<A, B, Op>,
+      public DExpr<DBinExprOp<A, B, Op>> {
+  public:
+    using DType = typename A::DType;
+    using DBinaryExprCommonData<A, B, Op>::traverse;
+
+  private:
+    using DBinaryExprCommonData<A, B, Op>::a_;
+    using DBinaryExprCommonData<A, B, Op>::b_;
     // For backpropagation
     ConstTensor<DType> res{};
     using This = DBinExprOp<A, B, Op>;
@@ -22,7 +47,7 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
     using Left = A;
     using Right = B;
 
-    DBinExprOp(const A &a, const B &b) : a_{a}, b_{b} {}
+    DBinExprOp(const A &a, const B &b) : DBinaryExprCommonData<A, B, Op>{a, b} {}
 
     template <bool recursive>
     struct Flatten {
@@ -94,18 +119,5 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
 
         a_.backward_internal(reduce_axis(a_grad, a_prev.get_shape()));
         b_.backward_internal(reduce_axis(b_grad, b_prev.get_shape()));
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
     }
 };

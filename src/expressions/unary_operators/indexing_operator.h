@@ -4,12 +4,14 @@
 
 // Partial specialization for the Indexer operator
 template <typename A>
-class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
+class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
+                                    public DExpr<DUnaryExprOp<A, DApIndexer>> {
   public:
     using DType = typename A::DType;
+    using DUnaryExprCommonData<A, DApIndexer>::traverse;
 
   private:
-    A a_;
+    using DUnaryExprCommonData<A, DApIndexer>::a_;
     size_t index;
     // For back propagation
     Tensor<DType> res{1};
@@ -19,7 +21,7 @@ class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
     using Operand = A;
     using Operator = DApIndexer;
 
-    DUnaryExprOp(const A &a, size_t index) : a_{a}, index{index} {}
+    DUnaryExprOp(const A &a, size_t index) : DUnaryExprCommonData<A, DApIndexer>{a}, index{index} {}
 
     template <bool recursive>
     struct Flatten {
@@ -32,7 +34,7 @@ class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
     }
 
     struct Simplify {
-        using Type = DUnaryExprOp<typename A::Simplify::Type, DApFlatten>;
+        using Type = DUnaryExprOp<typename A::Simplify::Type, DApIndexer>;
     };
 
     void compute_temporaries_for_eval() {
@@ -63,16 +65,5 @@ class DUnaryExprOp<A, DApIndexer> : public DExpr<DUnaryExprOp<A, DApIndexer>> {
         grad_out[index] = grad[0];
         grad_out.wrap_for_broadcasting();
         a_.backward_internal(grad_out);
-    }
-
-    template <typename Visitor>
-    void traverse(Visitor &v) {
-        v(*this);
-        a_.traverse(v);
-    }
-    template <typename Visitor>
-    void traverse(Visitor &v) const {
-        v(*this);
-        a_.traverse(v);
     }
 };
