@@ -7,25 +7,30 @@
 // Common data to all binary operators
 template <typename A, typename B, typename Op>
 class DBinaryExprCommonData {
-  protected:
+  public:
     A a_;
     B b_;
 
     ConstTensor<typename A::DType> res{};
+    using Operator = Op;
 
   public:
     DBinaryExprCommonData(const A &a, const B &b) : a_{a}, b_{b} {}
     template <typename Visitor>
     void traverse(Visitor &v) {
         v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+            b_.traverse(v);
+        }
     }
     template <typename Visitor>
     void traverse(Visitor &v) const {
         v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+            b_.traverse(v);
+        }
     }
 };
 
@@ -63,11 +68,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
 
     static consteval size_t get_num_tensors() {
         return A::get_num_tensors() + B::get_num_tensors();
-    }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        a_.collect_tensor_handles(current_stack);
-        b_.collect_tensor_handles(current_stack);
     }
 
     struct Simplify {

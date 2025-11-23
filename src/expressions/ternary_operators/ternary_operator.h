@@ -12,6 +12,7 @@ class DTernaryExprCommonData {
     B b_;
     C c_;
 
+    using Operator = Op;
     ConstTensor<typename A::DType> res{};
 
   public:
@@ -19,16 +20,20 @@ class DTernaryExprCommonData {
     template <typename Visitor>
     void traverse(Visitor &v) {
         v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-        c_.traverse(v);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+            b_.traverse(v);
+            c_.traverse(v);
+        }
     }
     template <typename Visitor>
     void traverse(Visitor &v) const {
         v(*this);
-        a_.traverse(v);
-        b_.traverse(v);
-        c_.traverse(v);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+            b_.traverse(v);
+            c_.traverse(v);
+        }
     }
 };
 
@@ -68,12 +73,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>
     static consteval size_t get_num_tensors() {
         return A::get_num_tensors() + B::get_num_tensors() + C::get_num_tensors();
     }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        a_.collect_tensor_handles(current_stack);
-        b_.collect_tensor_handles(current_stack);
-        c_.collect_tensor_handles(current_stack);
-    };
 
     void compute_temporaries_for_eval() {
         a_.compute_temporaries_for_eval();

@@ -28,9 +28,9 @@ auto DExpr<Expr>::get_parameters() const {
 template <typename Expr>
 auto DExpr<Expr>::collect_tensor_handles() const {
     using T = IntrinsicType::Type;
-
     constexpr size_t num_tensors = DExpr<Expr>::get_num_tensors();
-    DataBuffer<T, num_tensors> data_buffer{};
-    static_cast<const Expr &>(*this).collect_tensor_handles(data_buffer);
-    return data_buffer;
+    GetTensorHandlesVisitor<T, num_tensors> visitor{};
+
+    static_cast<const Expr &>(*this).traverse(visitor);
+    return visitor.res;
 }

@@ -34,10 +34,6 @@ requires(std::is_same_v<typename A::DType,
 
     static consteval size_t get_num_tensors() { return 1; }
 
-    void collect_tensor_handles(auto &current_stack) const {
-        current_stack.push_back_variable(this->res);
-    }
-
     template <bool recursive>
     struct Flatten {
         using Type = Stack<ops::VARIABLE_OP>;

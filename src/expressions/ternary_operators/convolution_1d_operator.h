@@ -13,6 +13,7 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
   public:
     using DType = typename A::DType;
     using DTernaryExprCommonData<A, B, C, DApConv1d>::traverse;
+    using Operator = DApConv1d;
 
   private:
     // a_ is the kernel
@@ -52,10 +53,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         : DTernaryExprCommonData<A, B, C, DApConv1d>{a, b, c} {}
 
     static consteval size_t get_num_tensors() { return 1; }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        current_stack.push_back_variable(this->res);
-    }
 
     template <bool recursive>
     struct Flatten {

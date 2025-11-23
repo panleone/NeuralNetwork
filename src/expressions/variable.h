@@ -26,13 +26,6 @@ requires(std::is_same_v<T, double> || std::is_same_v<T, float>) class DExprTenso
 
     static consteval size_t get_num_tensors() { return 1; }
 
-    void collect_tensor_handles(auto &current_stack) const {
-        // TODO: can we avoid the wrap_for_broadcating?
-        t_.tensor.wrap_for_broadcasting();
-
-        current_stack.push_back_variable(t_.tensor);
-    }
-
     struct Simplify {
         using Type = This;
     };
