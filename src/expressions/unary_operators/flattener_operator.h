@@ -17,13 +17,10 @@ class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
     using CommonData::traverse;
     using typename CommonData::DType;
     using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     DUnaryExprOp(const A &a) : CommonData{a} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
 
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;

@@ -45,17 +45,14 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     using CommonData::traverse;
     using typename CommonData::DType;
     using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     using Left = A;
     using Middle = B;
     using Right = C;
 
     DTernExprOp(const A &a, const B &b, const C &c) : CommonData{a, b, c} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
 
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;

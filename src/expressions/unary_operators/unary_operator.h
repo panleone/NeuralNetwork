@@ -54,6 +54,22 @@ class DUnaryExprCommonData {
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, Operator>;
     };
+
+    template <bool recursive>
+    struct FlattenOpNoTemporary {
+        using tmp1 = std::conditional_t<recursive,
+                                        typename A::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+        using tmp2 = Stack<Op::STACK_VAL>;
+        using Type = MergeStacksT<tmp1, tmp2>;
+    };
+
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
+    };
 };
 
 template <typename A, typename Op>
@@ -68,17 +84,9 @@ class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExpr
     using CommonData::traverse;
     using typename CommonData::DType;
     using typename CommonData::Simplify;
-
-    DUnaryExprOp(const A &a) : CommonData{a} {}
-
     template <bool recursive>
-    struct Flatten {
-        using tmp1 = std::conditional_t<recursive,
-                                        typename A::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-        using tmp2 = Stack<Op::STACK_VAL>;
-        using Type = MergeStacksT<tmp1, tmp2>;
-    };
+    using Flatten = typename CommonData::Flatten<recursive>;
+    DUnaryExprOp(const A &a) : CommonData{a} {}
 
     void compute_temporaries_for_eval() { a_.compute_temporaries_for_eval(); }
     template <bool use_cache>

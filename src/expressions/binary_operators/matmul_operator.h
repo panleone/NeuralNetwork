@@ -22,6 +22,8 @@ requires(std::is_same_v<typename A::DType,
     using CommonData::Operator;
     using CommonData::traverse;
     using typename CommonData::DType;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     using Left = A;
     using Right = B;
@@ -30,11 +32,6 @@ requires(std::is_same_v<typename A::DType,
     static constexpr bool transpose_right = tRight;
 
     DBinExprOp(const A &a, const B &b) : CommonData{a, b} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
 
     struct Simplify {
         using Type = typename MatMulSimplifier<This>::Type;

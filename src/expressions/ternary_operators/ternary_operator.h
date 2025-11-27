@@ -58,6 +58,29 @@ class DTernaryExprCommonData {
                                  typename C::Simplify::Type,
                                  Op>;
     };
+
+    template <bool recursive>
+    struct FlattenOpNoTemporary {
+        using tmp1 = std::conditional_t<recursive,
+                                        typename A::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+        using tmp2 = std::conditional_t<recursive,
+                                        typename B::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+        using tmp3 = std::conditional_t<recursive,
+                                        typename C::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+
+        using tmp4 = Stack<Op::STACK_VAL>;
+        using Type = MergeStacksT<MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>, tmp4>;
+    };
+
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
+    };
 };
 
 template <typename A, typename B, typename C, typename Op>
@@ -75,24 +98,10 @@ requires(std::is_same_v<typename A::DType, typename B::DType>
     using CommonData::traverse;
     using typename CommonData::DType;
     using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     DTernExprOp(const A &a, const B &b, const C &c) : CommonData{a, b, c} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using tmp1 = std::conditional_t<recursive,
-                                        typename A::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-        using tmp2 = std::conditional_t<recursive,
-                                        typename B::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-        using tmp3 = std::conditional_t<recursive,
-                                        typename C::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-
-        using tmp4 = Stack<Op::STACK_VAL>;
-        using Type = MergeStacksT<MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>, tmp4>;
-    };
 
     void compute_temporaries_for_eval() {
         a_.compute_temporaries_for_eval();

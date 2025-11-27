@@ -47,6 +47,24 @@ class DBinaryExprCommonData {
             return node_res;
         }
     }
+
+    template <bool recursive>
+    struct FlattenOpNoTemporary {
+        using tmp1 = std::conditional_t<recursive,
+                                        typename A::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+        using tmp2 = std::conditional_t<recursive,
+                                        typename B::template Flatten<true>::Type,
+                                        Stack<ops::VARIABLE_OP>>;
+        using tmp3 = Stack<Op::STACK_VAL>;
+        using Type = MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>;
+    };
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
+    };
 };
 
 template <typename A, typename B, typename Op>
@@ -63,23 +81,13 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
     using CommonData::Operator;
     using CommonData::traverse;
     using typename CommonData::DType;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     using Left = A;
     using Right = B;
 
     DBinExprOp(const A &a, const B &b) : CommonData{a, b} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using tmp1 = std::conditional_t<recursive,
-                                        typename A::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-        using tmp2 = std::conditional_t<recursive,
-                                        typename B::template Flatten<true>::Type,
-                                        Stack<ops::VARIABLE_OP>>;
-        using tmp3 = Stack<Op::STACK_VAL>;
-        using Type = MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>;
-    };
 
     struct Simplify {
         using Type = typename BinarySimplifier<This>::Type;

@@ -18,13 +18,10 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
     using CommonData::traverse;
     using typename CommonData::DType;
     using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
 
     DUnaryExprOp(const A &a, size_t index) : CommonData{a}, index{index} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
 
     ConstTensor<DType> extract_index(ConstTensor<DType> t) {
         Tensor<DType> t_res{{1}};
