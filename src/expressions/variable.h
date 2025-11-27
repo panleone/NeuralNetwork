@@ -24,8 +24,6 @@ requires(std::is_same_v<T, double> || std::is_same_v<T, float>) class DExprTenso
         using Type = Stack<ops::VARIABLE_OP>;
     };
 
-    static consteval size_t get_num_tensors() { return 1; }
-
     struct Simplify {
         using Type = This;
     };
@@ -51,5 +49,10 @@ requires(std::is_same_v<T, double> || std::is_same_v<T, float>) class DExprTenso
     template <typename Visitor>
     void traverse(Visitor &v) const {
         v(*this);
+    }
+
+    template <typename Visitor>
+    static consteval auto traverse() {
+        return Visitor::template Visit<This>();
     }
 };

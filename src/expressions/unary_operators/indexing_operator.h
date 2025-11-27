@@ -26,8 +26,6 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
         using Type = Stack<ops::VARIABLE_OP>;
     };
 
-    static consteval size_t get_num_tensors() { return 1; }
-
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, DApIndexer>;
     };

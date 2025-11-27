@@ -32,6 +32,20 @@ class DBinaryExprCommonData {
             b_.traverse(v);
         }
     }
+
+    template <typename Visitor>
+    static consteval auto traverse() {
+        using This = DBinaryExprCommonData<A, B, Op>;
+        constexpr auto node_res = Visitor::template Visit<This>();
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            constexpr auto a_res = A::template traverse<Visitor>();
+            constexpr auto b_res = B::template traverse<Visitor>();
+
+            return Visitor::template Aggregate(node_res, a_res, b_res);
+        } else {
+            return node_res;
+        }
+    }
 };
 
 template <typename A, typename B, typename Op>
@@ -65,10 +79,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
         using tmp3 = Stack<Op::STACK_VAL>;
         using Type = MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>;
     };
-
-    static consteval size_t get_num_tensors() {
-        return A::get_num_tensors() + B::get_num_tensors();
-    }
 
     struct Simplify {
         using Type = typename BinarySimplifier<This>::Type;

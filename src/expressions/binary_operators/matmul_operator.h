@@ -32,8 +32,6 @@ requires(std::is_same_v<typename A::DType,
     DBinExprOp(const A &a, const B &b)
         : DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>{a, b} {}
 
-    static consteval size_t get_num_tensors() { return 1; }
-
     template <bool recursive>
     struct Flatten {
         using Type = Stack<ops::VARIABLE_OP>;

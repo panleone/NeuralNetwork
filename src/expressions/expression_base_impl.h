@@ -14,7 +14,8 @@
 #include "unary_operators/indexing_operator.h"
 #include "variable.h"
 
-#include "visitors/visitors.h"
+#include "visitors/runtime_visitors.h"
+#include "visitors/compile_time_visitors.h"
 
 template <typename Expr>
 auto DExpr<Expr>::get_parameters() const {
@@ -28,7 +29,7 @@ auto DExpr<Expr>::get_parameters() const {
 template <typename Expr>
 auto DExpr<Expr>::collect_tensor_handles() const {
     using T = IntrinsicType::Type;
-    constexpr size_t num_tensors = DExpr<Expr>::get_num_tensors();
+    constexpr size_t num_tensors = Expr::template traverse<GetNumTensorHandlesVisitor<T>>();
     GetTensorHandlesVisitor<T, num_tensors> visitor{};
 
     static_cast<const Expr &>(*this).traverse(visitor);

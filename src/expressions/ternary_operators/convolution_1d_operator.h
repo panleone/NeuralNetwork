@@ -52,8 +52,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     DTernExprOp(const A &a, const B &b, const C &c)
         : DTernaryExprCommonData<A, B, C, DApConv1d>{a, b, c} {}
 
-    static consteval size_t get_num_tensors() { return 1; }
-
     template <bool recursive>
     struct Flatten {
         using Type = Stack<ops::VARIABLE_OP>;

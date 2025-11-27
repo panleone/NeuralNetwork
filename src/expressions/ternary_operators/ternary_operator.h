@@ -35,6 +35,21 @@ class DTernaryExprCommonData {
             c_.traverse(v);
         }
     }
+
+    template <typename Visitor>
+    static consteval auto traverse() {
+        using This = DTernaryExprCommonData<A, B, C, Op>;
+        constexpr auto node_res = Visitor::template Visit<This>();
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            constexpr auto a_res = A::template traverse<Visitor>();
+            constexpr auto b_res = B::template traverse<Visitor>();
+            constexpr auto c_res = B::template traverse<Visitor>();
+
+            return Visitor::template Aggregate(node_res, a_res, b_res, c_res);
+        } else {
+            return node_res;
+        }
+    }
 };
 
 template <typename A, typename B, typename C, typename Op>
@@ -69,10 +84,6 @@ requires(std::is_same_v<typename A::DType, typename B::DType>
         using tmp4 = Stack<Op::STACK_VAL>;
         using Type = MergeStacksT<MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>, tmp4>;
     };
-
-    static consteval size_t get_num_tensors() {
-        return A::get_num_tensors() + B::get_num_tensors() + C::get_num_tensors();
-    }
 
     void compute_temporaries_for_eval() {
         a_.compute_temporaries_for_eval();
