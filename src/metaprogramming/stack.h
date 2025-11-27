@@ -9,11 +9,11 @@ using PopFrontInternalT = typename PopFrontInternal<others...>::Type;
 template <size_t... others>
 constexpr size_t PopFrontInternalV = PopFrontInternal<others...>::value;
 
-template <typename S1, typename S2>
+template <typename S1, typename S2, typename... S>
 struct MergeStacks;
 
-template <typename S1, typename S2>
-using MergeStacksT = typename MergeStacks<S1, S2>::Type;
+template <typename... S>
+using MergeStacksT = typename MergeStacks<S...>::Type;
 
 template <size_t... elements>
 struct Stack {
@@ -51,8 +51,13 @@ struct CountStack<Stack<>, x> {
     static constexpr size_t value = 0;
 };
 
-template <typename S1, typename S2>
+template <typename S1, typename S2, typename... S>
 struct MergeStacks {
+    using Type = MergeStacksT<typename MergeStacks<S1, S2>::Type, S...>;
+};
+
+template <typename S1, typename S2>
+struct MergeStacks<S1, S2> {
     using tmp = typename S2::PopFrontT;
     constexpr static size_t tmp_val = S2::PopFrontV;
     using Type = MergeStacksT<typename S1::PushBackT<tmp_val>, tmp>;

@@ -57,7 +57,7 @@ class DBinaryExprCommonData {
                                         typename B::template Flatten<true>::Type,
                                         Stack<ops::VARIABLE_OP>>;
         using tmp3 = Stack<Op::STACK_VAL>;
-        using Type = MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>;
+        using Type = MergeStacksT<tmp1, tmp2, tmp3>;
     };
     template <bool recursive>
     struct Flatten {
