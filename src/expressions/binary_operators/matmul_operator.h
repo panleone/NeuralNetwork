@@ -12,25 +12,24 @@ requires(std::is_same_v<typename A::DType,
                         typename B::DType>) class DBinExprOp<A, B, DApMatMul<tLeft, tRight>>
     : public DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>,
       public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
-  public:
-    using DType = typename A::DType;
-    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::traverse;
-
   private:
-    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::a_;
-    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::b_;
+    using CommonData = DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>;
+    using CommonData::a_;
+    using CommonData::b_;
     using This = DBinExprOp<A, B, DApMatMul<tLeft, tRight>>;
 
   public:
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+
     using Left = A;
     using Right = B;
-    using Operator = DApMatMul<tLeft, tRight>;
 
     static constexpr bool transpose_left = tLeft;
     static constexpr bool transpose_right = tRight;
 
-    DBinExprOp(const A &a, const B &b)
-        : DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>{a, b} {}
+    DBinExprOp(const A &a, const B &b) : CommonData{a, b} {}
 
     template <bool recursive>
     struct Flatten {

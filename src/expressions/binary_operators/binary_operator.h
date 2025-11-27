@@ -8,11 +8,12 @@
 template <typename A, typename B, typename Op>
 class DBinaryExprCommonData {
   public:
+    using Operator = Op;
+    using DType = typename A::DType;
+
     A a_;
     B b_;
-
-    ConstTensor<typename A::DType> res{};
-    using Operator = Op;
+    ConstTensor<DType> res{};
 
   public:
     DBinaryExprCommonData(const A &a, const B &b) : a_{a}, b_{b} {}
@@ -52,21 +53,21 @@ template <typename A, typename B, typename Op>
 requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
     : public DBinaryExprCommonData<A, B, Op>,
       public DExpr<DBinExprOp<A, B, Op>> {
-  public:
-    using DType = typename A::DType;
-    using DBinaryExprCommonData<A, B, Op>::traverse;
-
   private:
-    using DBinaryExprCommonData<A, B, Op>::a_;
-    using DBinaryExprCommonData<A, B, Op>::b_;
+    using CommonData = DBinaryExprCommonData<A, B, Op>;
+    using CommonData::a_;
+    using CommonData::b_;
     using This = DBinExprOp<A, B, Op>;
 
   public:
-    using Operator = Op;
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+
     using Left = A;
     using Right = B;
 
-    DBinExprOp(const A &a, const B &b) : DBinaryExprCommonData<A, B, Op>{a, b} {}
+    DBinExprOp(const A &a, const B &b) : CommonData{a, b} {}
 
     template <bool recursive>
     struct Flatten {

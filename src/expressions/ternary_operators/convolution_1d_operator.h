@@ -10,21 +10,17 @@ template <typename A, typename B, typename C>
 requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp<A, B, C, DApConv1d>
     : public DTernaryExprCommonData<A, B, C, DApConv1d>,
       public DExpr<DTernExprOp<A, B, C, DApConv1d>> {
-  public:
-    using DType = typename A::DType;
-    using DTernaryExprCommonData<A, B, C, DApConv1d>::traverse;
-    using Operator = DApConv1d;
-
   private:
+    using CommonData = DTernaryExprCommonData<A, B, C, DApConv1d>;
     // a_ is the kernel
-    using DTernaryExprCommonData<A, B, C, DApConv1d>::a_;
+    using CommonData::a_;
     // b_ is the data buffer on which we apply the kernel
-    using DTernaryExprCommonData<A, B, C, DApConv1d>::b_;
+    using CommonData::b_;
     // c_ is the bias vector
-    using DTernaryExprCommonData<A, B, C, DApConv1d>::c_;
+    using CommonData::c_;
     // We also cache the kernel and x in their im2col version
-    ConstTensor<DType> kernel_data_im2col;
-    ConstTensor<DType> x_data_im2col;
+    ConstTensor<typename CommonData::DType> kernel_data_im2col;
+    ConstTensor<typename CommonData::DType> x_data_im2col;
 
     using This = DTernExprOp<A, B, C, DApConv1d>;
 
@@ -45,23 +41,20 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     size_t EFFECTIVE_WIDTH{0};
 
   public:
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
+
     using Left = A;
     using Middle = B;
     using Right = C;
 
-    DTernExprOp(const A &a, const B &b, const C &c)
-        : DTernaryExprCommonData<A, B, C, DApConv1d>{a, b, c} {}
+    DTernExprOp(const A &a, const B &b, const C &c) : CommonData{a, b, c} {}
 
     template <bool recursive>
     struct Flatten {
         using Type = Stack<ops::VARIABLE_OP>;
-    };
-
-    struct Simplify {
-        using Type = DTernExprOp<typename A::Simplify::Type,
-                                 typename B::Simplify::Type,
-                                 typename C::Simplify::Type,
-                                 DApConv1d>;
     };
 
     void compute_temporaries_for_eval() {
