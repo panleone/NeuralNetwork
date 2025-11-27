@@ -6,28 +6,21 @@
 template <typename A>
 class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
                                     public DExpr<DUnaryExprOp<A, DApFlatten>> {
-  public:
-    using DType = typename A::DType;
-    using DUnaryExprCommonData<A, DApFlatten>::traverse;
-
   private:
-    using DUnaryExprCommonData<A, DApFlatten>::a_;
+    using CommonData = DUnaryExprCommonData<A, DApFlatten>;
+    using CommonData::a_;
     Shape in_shape{};
 
   public:
-    using Operand = A;
-    using Operator = DApFlatten;
-
-    DUnaryExprOp(const A &a) : DUnaryExprCommonData<A, DApFlatten>{a} {}
-
+    using CommonData::Operand;
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
     template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
+    using Flatten = typename CommonData::Flatten<recursive>;
 
-    struct Simplify {
-        using Type = DUnaryExprOp<typename A::Simplify::Type, DApFlatten>;
-    };
+    DUnaryExprOp(const A &a) : CommonData{a} {}
 
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;

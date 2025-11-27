@@ -8,11 +8,12 @@
 template <typename A, typename B, typename Op>
 class DBinaryExprCommonData {
   public:
+    using Operator = Op;
+    using DType = typename A::DType;
+
     A a_;
     B b_;
-
-    ConstTensor<typename A::DType> res{};
-    using Operator = Op;
+    ConstTensor<DType> res{};
 
   public:
     DBinaryExprCommonData(const A &a, const B &b) : a_{a}, b_{b} {}
@@ -46,30 +47,9 @@ class DBinaryExprCommonData {
             return node_res;
         }
     }
-};
-
-template <typename A, typename B, typename Op>
-requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
-    : public DBinaryExprCommonData<A, B, Op>,
-      public DExpr<DBinExprOp<A, B, Op>> {
-  public:
-    using DType = typename A::DType;
-    using DBinaryExprCommonData<A, B, Op>::traverse;
-
-  private:
-    using DBinaryExprCommonData<A, B, Op>::a_;
-    using DBinaryExprCommonData<A, B, Op>::b_;
-    using This = DBinExprOp<A, B, Op>;
-
-  public:
-    using Operator = Op;
-    using Left = A;
-    using Right = B;
-
-    DBinExprOp(const A &a, const B &b) : DBinaryExprCommonData<A, B, Op>{a, b} {}
 
     template <bool recursive>
-    struct Flatten {
+    struct FlattenOpNoTemporary {
         using tmp1 = std::conditional_t<recursive,
                                         typename A::template Flatten<true>::Type,
                                         Stack<ops::VARIABLE_OP>>;
@@ -79,6 +59,35 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
         using tmp3 = Stack<Op::STACK_VAL>;
         using Type = MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>;
     };
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
+    };
+};
+
+template <typename A, typename B, typename Op>
+requires(std::is_same_v<typename A::DType, typename B::DType>) class DBinExprOp
+    : public DBinaryExprCommonData<A, B, Op>,
+      public DExpr<DBinExprOp<A, B, Op>> {
+  private:
+    using CommonData = DBinaryExprCommonData<A, B, Op>;
+    using CommonData::a_;
+    using CommonData::b_;
+    using This = DBinExprOp<A, B, Op>;
+
+  public:
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
+
+    using Left = A;
+    using Right = B;
+
+    DBinExprOp(const A &a, const B &b) : CommonData{a, b} {}
 
     struct Simplify {
         using Type = typename BinarySimplifier<This>::Type;

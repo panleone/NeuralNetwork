@@ -12,12 +12,8 @@ template <typename A, typename B, typename C>
 requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp<A, B, C, DApConv2d>
     : public DTernaryExprCommonData<A, B, C, DApConv2d>,
       public DExpr<DTernExprOp<A, B, C, DApConv2d>> {
-  public:
-    using DType = typename A::DType;
-    using DTernaryExprCommonData<A, B, C, DApConv2d>::traverse;
-    using Operator = DApConv2d;
-
   private:
+    using CommonData = DTernaryExprCommonData<A, B, C, DApConv2d>;
     // a_ is the kernel
     using DTernaryExprCommonData<A, B, C, DApConv2d>::a_;
     // b_ is the data buffer on which we apply the kernel
@@ -25,8 +21,8 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     // c_ is the bias vector
     using DTernaryExprCommonData<A, B, C, DApConv2d>::c_;
     // We also cache the kernel and x in their im2col version
-    ConstTensor<DType> kernel_data_im2col;
-    ConstTensor<DType> x_data_im2col;
+    ConstTensor<typename CommonData::DType> kernel_data_im2col;
+    ConstTensor<typename CommonData::DType> x_data_im2col;
 
     using This = DTernExprOp<A, B, C, DApConv2d>;
 
@@ -54,24 +50,18 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     size_t EFFECTIVE_HEIGHT{0};
 
   public:
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
+
     using Left = A;
     using Middle = B;
     using Right = C;
 
-    DTernExprOp(const A &a, const B &b, const C &c)
-        : DTernaryExprCommonData<A, B, C, DApConv2d>{a, b, c} {}
-
-    template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
-
-    struct Simplify {
-        using Type = DTernExprOp<typename A::Simplify::Type,
-                                 typename B::Simplify::Type,
-                                 typename C::Simplify::Type,
-                                 DApConv2d>;
-    };
+    DTernExprOp(const A &a, const B &b, const C &c) : CommonData{a, b, c} {}
 
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;

@@ -8,13 +8,19 @@
 template <typename T, typename U>
 requires(std::is_same_v<T, double> || std::is_same_v<T, float>) struct InterpretInternal;
 
+template <typename A, typename Op>
+class DUnaryExprOp;
+
 // Common data to all unary operators
 template <typename A, typename Op>
 class DUnaryExprCommonData {
   public:
-    A a_;
-    ConstTensor<typename A::DType> res{};
     using Operator = Op;
+    using Operand = A;
+    using DType = typename A::DType;
+
+    A a_;
+    ConstTensor<DType> res{};
 
   public:
     DUnaryExprCommonData(const A &a) : a_{a} {}
@@ -44,25 +50,13 @@ class DUnaryExprCommonData {
             return node_res;
         }
     }
-};
 
-template <typename A, typename Op>
-class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExprOp<A, Op>> {
-  public:
-    using DType = typename A::DType;
-    using DUnaryExprCommonData<A, Op>::traverse;
-
-  private:
-    using DUnaryExprCommonData<A, Op>::a_;
-
-  public:
-    using Operand = A;
-    using Operator = Op;
-
-    DUnaryExprOp(const A &a) : DUnaryExprCommonData<A, Op>{a} {}
+    struct Simplify {
+        using Type = DUnaryExprOp<typename A::Simplify::Type, Operator>;
+    };
 
     template <bool recursive>
-    struct Flatten {
+    struct FlattenOpNoTemporary {
         using tmp1 = std::conditional_t<recursive,
                                         typename A::template Flatten<true>::Type,
                                         Stack<ops::VARIABLE_OP>>;
@@ -70,9 +64,29 @@ class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExpr
         using Type = MergeStacksT<tmp1, tmp2>;
     };
 
-    struct Simplify {
-        using Type = DUnaryExprOp<typename A::Simplify::Type, Op>;
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
     };
+};
+
+template <typename A, typename Op>
+class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExprOp<A, Op>> {
+  private:
+    using CommonData = DUnaryExprCommonData<A, Op>;
+    using CommonData::a_;
+
+  public:
+    using CommonData::Operand;
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
+    DUnaryExprOp(const A &a) : CommonData{a} {}
 
     void compute_temporaries_for_eval() { a_.compute_temporaries_for_eval(); }
     template <bool use_cache>

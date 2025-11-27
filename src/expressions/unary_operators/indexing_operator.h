@@ -6,29 +6,22 @@
 template <typename A>
 class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
                                     public DExpr<DUnaryExprOp<A, DApIndexer>> {
-  public:
-    using DType = typename A::DType;
-    using DUnaryExprCommonData<A, DApIndexer>::traverse;
-
   private:
-    using DUnaryExprCommonData<A, DApIndexer>::a_;
+    using CommonData = DUnaryExprCommonData<A, DApIndexer>;
+    using CommonData::a_;
     size_t index;
     Shape in_shape{};
 
   public:
-    using Operand = A;
-    using Operator = DApIndexer;
-
-    DUnaryExprOp(const A &a, size_t index) : DUnaryExprCommonData<A, DApIndexer>{a}, index{index} {}
-
+    using CommonData::Operand;
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
     template <bool recursive>
-    struct Flatten {
-        using Type = Stack<ops::VARIABLE_OP>;
-    };
+    using Flatten = typename CommonData::Flatten<recursive>;
 
-    struct Simplify {
-        using Type = DUnaryExprOp<typename A::Simplify::Type, DApIndexer>;
-    };
+    DUnaryExprOp(const A &a, size_t index) : CommonData{a}, index{index} {}
 
     ConstTensor<DType> extract_index(ConstTensor<DType> t) {
         Tensor<DType> t_res{{1}};

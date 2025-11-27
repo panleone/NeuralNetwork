@@ -8,12 +8,13 @@
 template <typename A, typename B, typename C, typename Op>
 class DTernaryExprCommonData {
   public:
+    using Operator = Op;
+    using DType = typename A::DType;
+
     A a_;
     B b_;
     C c_;
-
-    using Operator = Op;
-    ConstTensor<typename A::DType> res{};
+    ConstTensor<DType> res{};
 
   public:
     DTernaryExprCommonData(const A &a, const B &b, const C &c) : a_{a}, b_{b}, c_{c} {}
@@ -50,27 +51,16 @@ class DTernaryExprCommonData {
             return node_res;
         }
     }
-};
 
-template <typename A, typename B, typename C, typename Op>
-requires(std::is_same_v<typename A::DType, typename B::DType>
-             &&std::is_same_v<typename B::DType, typename C::DType>) class DTernExprOp
-    : public DTernaryExprCommonData<A, B, C, Op> {
-  private:
-    using DTernaryExprCommonData<A, B, C, Op>::a_;
-    using DTernaryExprCommonData<A, B, C, Op>::b_;
-    using DTernaryExprCommonData<A, B, C, Op>::c_;
-
-    using DType = typename A::DType;
-
-  public:
-    using DTernaryExprCommonData<A, B, C, Op>::traverse;
-    using Operator = Op;
-    DTernExprOp(const A &a, const B &b, const C &c)
-        : DTernaryExprCommonData<A, B, C, Op>{a, b, c} {}
+    struct Simplify {
+        using Type = DTernExprOp<typename A::Simplify::Type,
+                                 typename B::Simplify::Type,
+                                 typename C::Simplify::Type,
+                                 Op>;
+    };
 
     template <bool recursive>
-    struct Flatten {
+    struct FlattenOpNoTemporary {
         using tmp1 = std::conditional_t<recursive,
                                         typename A::template Flatten<true>::Type,
                                         Stack<ops::VARIABLE_OP>>;
@@ -84,6 +74,34 @@ requires(std::is_same_v<typename A::DType, typename B::DType>
         using tmp4 = Stack<Op::STACK_VAL>;
         using Type = MergeStacksT<MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>, tmp4>;
     };
+
+    template <bool recursive>
+    struct Flatten {
+        using Type = std::conditional_t<Op::NEEDS_TEMPORARY_FOR_EVAL,
+                                        Stack<ops::VARIABLE_OP>,
+                                        typename FlattenOpNoTemporary<recursive>::Type>;
+    };
+};
+
+template <typename A, typename B, typename C, typename Op>
+requires(std::is_same_v<typename A::DType, typename B::DType>
+             &&std::is_same_v<typename B::DType, typename C::DType>) class DTernExprOp
+    : public DTernaryExprCommonData<A, B, C, Op> {
+  private:
+    using CommonData = DTernaryExprCommonData<A, B, C, Op>;
+    using CommonData::a_;
+    using CommonData::b_;
+    using CommonData::c_;
+
+  public:
+    using CommonData::Operator;
+    using CommonData::traverse;
+    using typename CommonData::DType;
+    using typename CommonData::Simplify;
+    template <bool recursive>
+    using Flatten = typename CommonData::Flatten<recursive>;
+
+    DTernExprOp(const A &a, const B &b, const C &c) : CommonData{a, b, c} {}
 
     void compute_temporaries_for_eval() {
         a_.compute_temporaries_for_eval();
