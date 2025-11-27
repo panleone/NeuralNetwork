@@ -21,7 +21,9 @@ struct GetParametersVisitor {
 };
 
 /**
- * Returns the internal parameters of an expression tree, for which we require a gradient.
+ * Returns the effective tensors of the expression tree. Which are:
+ * 1) The leaves of the tree
+ * 2) The partial results of nodes that require NEEDS_TEMPORARY_FOR_EVAL
  */
 template <typename T, size_t num_tensors>
 struct GetTensorHandlesVisitor {
