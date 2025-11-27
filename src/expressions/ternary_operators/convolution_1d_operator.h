@@ -8,19 +8,20 @@
  */
 template <typename A, typename B, typename C>
 requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp<A, B, C, DApConv1d>
-    : public DExpr<DTernExprOp<A, B, C, DApConv1d>> {
+    : public DTernaryExprCommonData<A, B, C, DApConv1d>,
+      public DExpr<DTernExprOp<A, B, C, DApConv1d>> {
   public:
     using DType = typename A::DType;
+    using DTernaryExprCommonData<A, B, C, DApConv1d>::traverse;
+    using Operator = DApConv1d;
 
   private:
     // a_ is the kernel
-    A a_;
+    using DTernaryExprCommonData<A, B, C, DApConv1d>::a_;
     // b_ is the data buffer on which we apply the kernel
-    B b_;
+    using DTernaryExprCommonData<A, B, C, DApConv1d>::b_;
     // c_ is the bias vector
-    C c_;
-    // Result of the 1d convolution
-    ConstTensor<DType> res{};
+    using DTernaryExprCommonData<A, B, C, DApConv1d>::c_;
     // We also cache the kernel and x in their im2col version
     ConstTensor<DType> kernel_data_im2col;
     ConstTensor<DType> x_data_im2col;
@@ -48,18 +49,8 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     using Middle = B;
     using Right = C;
 
-    DTernExprOp(const A &a, const B &b, const C &c) : a_{a}, b_{b}, c_{c} {}
-
-    static consteval size_t get_num_tensors() { return 1; }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        current_stack.push_back_variable(res);
-    }
-    void get_parameters_internal(auto &res) const {
-        a_.get_parameters_internal(res);
-        b_.get_parameters_internal(res);
-        c_.get_parameters_internal(res);
-    }
+    DTernExprOp(const A &a, const B &b, const C &c)
+        : DTernaryExprCommonData<A, B, C, DApConv1d>{a, b, c} {}
 
     template <bool recursive>
     struct Flatten {
@@ -88,7 +79,7 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         auto res_shape = Shape::get_matmul_shape<false, true>(x_data_matrix.get_shape(),
                                                               kernel_matrix.get_shape());
 
-        res = res_col2im(
+        this->res = res_col2im(
             mat_mul_wrapper<DType, false, true>(x_data_matrix, kernel_matrix, res_shape));
     }
 
@@ -105,10 +96,10 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
             auto res_shape = Shape::get_matmul_shape<false, true>(x_data_im2col.get_shape(),
                                                                   kernel_data_im2col.get_shape());
 
-            res = res_col2im(
+            this->res = res_col2im(
                 mat_mul_wrapper<DType, false, true>(x_data_im2col, kernel_data_im2col, res_shape));
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {

@@ -410,7 +410,8 @@ class DataBuffer {
     DataBuffer() : expression_variables{} {};
 
     template <typename... T>
-    requires(sizeof...(T) == N) DataBuffer(T &&...tensors)
+    requires(sizeof...(T) == N && (std::constructible_from<TensorBroadcastableRef<DType>, T &&> &&
+                                   ...)) DataBuffer(T &&...tensors)
         : expression_variables({TensorBroadcastableRef<DType>(std::forward<T>(tensors))...}){};
     void push_back_variable(const ConstTensor<DType> &variable) {
         expression_variables[push_back_idx++] = TensorBroadcastableRef<DType>(variable);

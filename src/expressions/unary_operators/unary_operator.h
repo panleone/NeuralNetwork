@@ -8,21 +8,58 @@
 template <typename T, typename U>
 requires(std::is_same_v<T, double> || std::is_same_v<T, float>) struct InterpretInternal;
 
+// Common data to all unary operators
 template <typename A, typename Op>
-class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
+class DUnaryExprCommonData {
+  public:
+    A a_;
+    ConstTensor<typename A::DType> res{};
+    using Operator = Op;
+
+  public:
+    DUnaryExprCommonData(const A &a) : a_{a} {}
+    template <typename Visitor>
+    void traverse(Visitor &v) {
+        v(*this);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+        }
+    }
+    template <typename Visitor>
+    void traverse(Visitor &v) const {
+        v(*this);
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            a_.traverse(v);
+        }
+    }
+
+    template <typename Visitor>
+    static consteval auto traverse() {
+        using This = DUnaryExprCommonData<A, Op>;
+        constexpr auto node_res = Visitor::template Visit<This>();
+        if constexpr (!Visitor::template END_RECURSION<Op>) {
+            constexpr auto a_res = A::template traverse<Visitor>();
+            return Visitor::template Aggregate(node_res, a_res);
+        } else {
+            return node_res;
+        }
+    }
+};
+
+template <typename A, typename Op>
+class DUnaryExprOp : public DUnaryExprCommonData<A, Op>, public DExpr<DUnaryExprOp<A, Op>> {
   public:
     using DType = typename A::DType;
+    using DUnaryExprCommonData<A, Op>::traverse;
 
   private:
-    A a_;
-    // For back propagation
-    ConstTensor<DType> res{};
+    using DUnaryExprCommonData<A, Op>::a_;
 
   public:
     using Operand = A;
     using Operator = Op;
 
-    DUnaryExprOp(const A &a) : a_{a} {}
+    DUnaryExprOp(const A &a) : DUnaryExprCommonData<A, Op>{a} {}
 
     template <bool recursive>
     struct Flatten {
@@ -32,14 +69,6 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
         using tmp2 = Stack<Op::STACK_VAL>;
         using Type = MergeStacksT<tmp1, tmp2>;
     };
-
-    static consteval size_t get_num_tensors() { return A::get_num_tensors(); }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        a_.collect_tensor_handles(current_stack);
-    }
-
-    void get_parameters_internal(auto &res) const { a_.get_parameters_internal(res); }
 
     struct Simplify {
         using Type = DUnaryExprOp<typename A::Simplify::Type, Op>;
@@ -51,10 +80,10 @@ class DUnaryExprOp : public DExpr<DUnaryExprOp<A, Op>> {
         if constexpr (!use_cache) {
             ConstTensor<DType> operand = a_.template compute_temporaries_for_backprop<use_cache>();
 
-            res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
+            this->res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
                 make_data_buffer<DType>(operand));
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {

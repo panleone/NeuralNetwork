@@ -10,15 +10,15 @@
 template <typename A, typename B, bool tLeft, bool tRight>
 requires(std::is_same_v<typename A::DType,
                         typename B::DType>) class DBinExprOp<A, B, DApMatMul<tLeft, tRight>>
-    : public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
+    : public DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>,
+      public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
   public:
     using DType = typename A::DType;
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::traverse;
 
   private:
-    A a_;
-    B b_;
-    // Result of the mat mul
-    ConstTensor<DType> res{};
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::a_;
+    using DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>::b_;
     using This = DBinExprOp<A, B, DApMatMul<tLeft, tRight>>;
 
   public:
@@ -29,17 +29,8 @@ requires(std::is_same_v<typename A::DType,
     static constexpr bool transpose_left = tLeft;
     static constexpr bool transpose_right = tRight;
 
-    DBinExprOp(const A &a, const B &b) : a_{a}, b_{b} {}
-
-    static consteval size_t get_num_tensors() { return 1; }
-
-    void collect_tensor_handles(auto &current_stack) const {
-        current_stack.push_back_variable(res);
-    }
-    void get_parameters_internal(auto &res) const {
-        a_.get_parameters_internal(res);
-        b_.get_parameters_internal(res);
-    }
+    DBinExprOp(const A &a, const B &b)
+        : DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>{a, b} {}
 
     template <bool recursive>
     struct Flatten {
@@ -63,8 +54,9 @@ requires(std::is_same_v<typename A::DType,
             Shape::get_matmul_shape<SimplifiedT::transpose_left, SimplifiedT::transpose_right>(
                 t1.get_shape(), t2.get_shape());
 
-        res = mat_mul_wrapper<DType, SimplifiedT::transpose_left, SimplifiedT::transpose_right>(
-            t1, t2, res_shape);
+        this->res =
+            mat_mul_wrapper<DType, SimplifiedT::transpose_left, SimplifiedT::transpose_right>(
+                t1, t2, res_shape);
     }
 
     template <bool use_cache>
@@ -73,10 +65,10 @@ requires(std::is_same_v<typename A::DType,
             ConstTensor<DType> t1 = a_.template compute_temporaries_for_backprop<use_cache>();
             ConstTensor<DType> t2 = b_.template compute_temporaries_for_backprop<use_cache>();
 
-            res = mat_mul_wrapper<DType, false, false>(
+            this->res = mat_mul_wrapper<DType, false, false>(
                 t1, t2, Shape::get_matmul_shape<false, false>(t1.get_shape(), t2.get_shape()));
         }
-        return res;
+        return this->res;
     }
 
     void backward_internal(const Tensor<DType> &grad) {

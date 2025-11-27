@@ -17,7 +17,8 @@ HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.
 		   src/expressions/unary_operators/flattener_operator.h src/expressions/unary_operators/unary_operator.h src/expressions/unary_operators/indexing_operator.h \
 		   src/expressions/binary_operators/binary_operator.h src/expressions/binary_operators/binary_operator_simplifier.h src/expressions/binary_operators/common_simplifier.h \
 		   src/expressions/binary_operators/matmul_operator.h src/expressions/binary_operators/matmul_simplifier.h \
-		   src/expressions/ternary_operators/ternary_operator.h src/expressions/ternary_operators/convolution_1d_operator.h src/expressions/ternary_operators/convolution_2d_operator.h
+		   src/expressions/ternary_operators/ternary_operator.h src/expressions/ternary_operators/convolution_1d_operator.h src/expressions/ternary_operators/convolution_2d_operator.h \
+		   src/expressions/visitors/compile_time_visitors.h src/expressions/visitors/runtime_visitors.h
 
 HEADERS_TESTS = src/tests/convolution_tests_1d.h src/tests/convolution_tests_2d.h src/tests/nn_tests.h src/tests/test_runner.h src/tests/test_utils.h \
 
