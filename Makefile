@@ -13,7 +13,7 @@ HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.
 		   src/avx/avx_ops.h src/avx/avx_wrapper.h \
 		   src/layers/convolution_layer.h src/layers/flattener_layer.h src/layers/linear_layer.h src/layers/relu_layer.h \
 		   src/metaprogramming/stack.h \
-		   src/expressions/expression.h src/expressions/expression_base.h src/expressions/expression_base_impl.h src/expressions/operations.h src/expressions/variable.h \
+		   src/expressions/expression.h src/expressions/expression_base.h src/expressions/expression_base_impl.h src/expressions/operations.h src/expressions/variable.h src/expressions/expression_common_data.h \
 		   src/expressions/unary_operators/flattener_operator.h src/expressions/unary_operators/unary_operator.h src/expressions/unary_operators/indexing_operator.h \
 		   src/expressions/binary_operators/binary_operator.h src/expressions/binary_operators/binary_operator_simplifier.h src/expressions/binary_operators/common_simplifier.h \
 		   src/expressions/binary_operators/matmul_operator.h src/expressions/binary_operators/matmul_simplifier.h \
