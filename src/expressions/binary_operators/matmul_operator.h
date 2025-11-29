@@ -8,20 +8,19 @@
  * Partial specialization for matrix multiplication
  */
 template <typename A, typename B, bool tLeft, bool tRight>
-requires(std::is_same_v<typename A::DType,
-                        typename B::DType>) class DBinExprOp<A, B, DApMatMul<tLeft, tRight>>
-    : public DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>,
+class DBinExprOp<A, B, DApMatMul<tLeft, tRight>>
+    : public DExprCommonData<DApMatMul<tLeft, tRight>, A, B>,
       public DExpr<DBinExprOp<A, B, DApMatMul<tLeft, tRight>>> {
   private:
-    using CommonData = DBinaryExprCommonData<A, B, DApMatMul<tLeft, tRight>>;
+    using CommonData = DExprCommonData<DApMatMul<tLeft, tRight>, A, B>;
     using CommonData::a_;
     using CommonData::b_;
     using This = DBinExprOp<A, B, DApMatMul<tLeft, tRight>>;
 
   public:
-    using CommonData::Operator;
     using CommonData::traverse;
     using typename CommonData::DType;
+    using typename CommonData::Operator;
     template <bool recursive>
     using Flatten = typename CommonData::Flatten<recursive>;
 
@@ -40,11 +39,11 @@ requires(std::is_same_v<typename A::DType,
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;
 
-        a_.compute_temporaries_for_eval();
-        b_.compute_temporaries_for_eval();
+        a_().compute_temporaries_for_eval();
+        b_().compute_temporaries_for_eval();
 
-        auto t1 = Interpreter<typename SimplifiedT::Left>::const_interpret(a_);
-        auto t2 = Interpreter<typename SimplifiedT::Right>::const_interpret(b_);
+        auto t1 = Interpreter<typename SimplifiedT::Left>::const_interpret(a_());
+        auto t2 = Interpreter<typename SimplifiedT::Right>::const_interpret(b_());
 
         auto res_shape =
             Shape::get_matmul_shape<SimplifiedT::transpose_left, SimplifiedT::transpose_right>(
@@ -58,8 +57,8 @@ requires(std::is_same_v<typename A::DType,
     template <bool use_cache>
     ConstTensor<DType> compute_temporaries_for_backprop() {
         if constexpr (!use_cache) {
-            ConstTensor<DType> t1 = a_.template compute_temporaries_for_backprop<use_cache>();
-            ConstTensor<DType> t2 = b_.template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> t1 = a_().template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> t2 = b_().template compute_temporaries_for_backprop<use_cache>();
 
             this->res = mat_mul_wrapper<DType, false, false>(
                 t1, t2, Shape::get_matmul_shape<false, false>(t1.get_shape(), t2.get_shape()));
@@ -69,14 +68,14 @@ requires(std::is_same_v<typename A::DType,
 
     void backward_internal(const Tensor<DType> &grad) {
         ConstTensor<DType> a_res =
-            a_.template compute_temporaries_for_backprop</*use_cache=*/true>();
+            a_().template compute_temporaries_for_backprop</*use_cache=*/true>();
         ConstTensor<DType> b_res =
-            b_.template compute_temporaries_for_backprop</*use_cache=*/true>();
+            b_().template compute_temporaries_for_backprop</*use_cache=*/true>();
 
         Tensor<DType> a_grad = mat_mul_wrapper<DType, false, true>(grad, b_res, a_res.get_shape());
         Tensor<DType> b_grad = mat_mul_wrapper<DType, true, false>(a_res, grad, b_res.get_shape());
 
-        a_.backward_internal(a_grad);
-        b_.backward_internal(b_grad);
+        a_().backward_internal(a_grad);
+        b_().backward_internal(b_grad);
     }
 };

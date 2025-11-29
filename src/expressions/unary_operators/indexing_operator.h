@@ -4,20 +4,19 @@
 
 // Partial specialization for the Indexer operator
 template <typename A>
-class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
+class DUnaryExprOp<A, DApIndexer> : public DExprCommonData<DApIndexer, A>,
                                     public DExpr<DUnaryExprOp<A, DApIndexer>> {
   private:
-    using CommonData = DUnaryExprCommonData<A, DApIndexer>;
+    using CommonData = DExprCommonData<DApIndexer, A>;
     using CommonData::a_;
     size_t index;
     Shape in_shape{};
 
   public:
-    using CommonData::Operand;
-    using CommonData::Operator;
+    using Operand = A;
     using CommonData::traverse;
     using typename CommonData::DType;
-    using typename CommonData::Simplify;
+    using typename CommonData::Operator;
     template <bool recursive>
     using Flatten = typename CommonData::Flatten<recursive>;
 
@@ -56,4 +55,8 @@ class DUnaryExprOp<A, DApIndexer> : public DUnaryExprCommonData<A, DApIndexer>,
         grad_out.wrap_for_broadcasting();
         a_.backward_internal(grad_out);
     }
+
+    struct Simplify {
+        using Type = DUnaryExprOp<typename A::Simplify::Type, Operator>;
+    };
 };
