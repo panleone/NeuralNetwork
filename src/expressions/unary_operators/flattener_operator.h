@@ -4,19 +4,18 @@
 
 // Partial specialization for the Flatten operator
 template <typename A>
-class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
+class DUnaryExprOp<A, DApFlatten> : public DExprCommonData<DApFlatten, A>,
                                     public DExpr<DUnaryExprOp<A, DApFlatten>> {
   private:
-    using CommonData = DUnaryExprCommonData<A, DApFlatten>;
+    using CommonData = DExprCommonData<DApFlatten, A>;
     using CommonData::a_;
     Shape in_shape{};
 
   public:
-    using CommonData::Operand;
-    using CommonData::Operator;
+    using Operand = A;
     using CommonData::traverse;
     using typename CommonData::DType;
-    using typename CommonData::Simplify;
+    using typename CommonData::Operator;
     template <bool recursive>
     using Flatten = typename CommonData::Flatten<recursive>;
 
@@ -25,9 +24,9 @@ class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;
 
-        a_.compute_temporaries_for_eval();
+        a_().compute_temporaries_for_eval();
 
-        this->res = Interpreter<typename Simplify::Type::Operand>::const_interpret(a_);
+        this->res = Interpreter<typename Simplify::Type::Operand>::const_interpret(a_());
 
         assert(this->res.get_shape().get_dimension() >= 2);
 
@@ -39,7 +38,8 @@ class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
     template <bool use_cache>
     ConstTensor<DType> compute_temporaries_for_backprop() {
         if constexpr (!use_cache) {
-            ConstTensor<DType> operand = a_.template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> operand =
+                a_().template compute_temporaries_for_backprop<use_cache>();
 
             this->res = InterpretInternal<DType, typename Flatten<false>::Type>::const_eval(
                 make_data_buffer<DType>(operand));
@@ -58,6 +58,10 @@ class DUnaryExprOp<A, DApFlatten> : public DUnaryExprCommonData<A, DApFlatten>,
 
         a_grad.set_shape(in_shape);
 
-        a_.backward_internal(a_grad);
+        a_().backward_internal(a_grad);
     }
+
+    struct Simplify {
+        using Type = DUnaryExprOp<typename A::Simplify::Type, Operator>;
+    };
 };

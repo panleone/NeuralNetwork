@@ -7,11 +7,10 @@
  * Partial specialization for 1d convolution
  */
 template <typename A, typename B, typename C>
-requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp<A, B, C, DApConv1d>
-    : public DTernaryExprCommonData<A, B, C, DApConv1d>,
-      public DExpr<DTernExprOp<A, B, C, DApConv1d>> {
+class DTernExprOp<A, B, C, DApConv1d> : public DExprCommonData<DApConv1d, A, B, C>,
+                                        public DExpr<DTernExprOp<A, B, C, DApConv1d>> {
   private:
-    using CommonData = DTernaryExprCommonData<A, B, C, DApConv1d>;
+    using CommonData = DExprCommonData<DApConv1d, A, B, C>;
     // a_ is the kernel
     using CommonData::a_;
     // b_ is the data buffer on which we apply the kernel
@@ -41,10 +40,9 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     size_t EFFECTIVE_WIDTH{0};
 
   public:
-    using CommonData::Operator;
     using CommonData::traverse;
     using typename CommonData::DType;
-    using typename CommonData::Simplify;
+    using typename CommonData::Operator;
     template <bool recursive>
     using Flatten = typename CommonData::Flatten<recursive>;
 
@@ -56,15 +54,15 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
 
     void compute_temporaries_for_eval() {
         using SimplifiedT = Simplify::Type;
-        a_.compute_temporaries_for_eval();
-        b_.compute_temporaries_for_eval();
-        c_.compute_temporaries_for_eval();
+        a_().compute_temporaries_for_eval();
+        b_().compute_temporaries_for_eval();
+        c_().compute_temporaries_for_eval();
 
         auto kernel_matrix =
-            kernel_im2col(Interpreter<typename SimplifiedT::Left>::const_interpret(a_),
-                          Interpreter<typename SimplifiedT::Right>::const_interpret(c_));
+            kernel_im2col(Interpreter<typename SimplifiedT::Left>::const_interpret(a_()),
+                          Interpreter<typename SimplifiedT::Right>::const_interpret(c_()));
         auto x_data_matrix =
-            x_im2col(Interpreter<typename SimplifiedT::Middle>::const_interpret(b_));
+            x_im2col(Interpreter<typename SimplifiedT::Middle>::const_interpret(b_()));
 
         auto res_shape = Shape::get_matmul_shape<false, true>(x_data_matrix.get_shape(),
                                                               kernel_matrix.get_shape());
@@ -76,9 +74,9 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
     template <bool use_cache>
     ConstTensor<DType> compute_temporaries_for_backprop() {
         if constexpr (!use_cache) {
-            ConstTensor<DType> kernel = a_.template compute_temporaries_for_backprop<use_cache>();
-            ConstTensor<DType> x_data = b_.template compute_temporaries_for_backprop<use_cache>();
-            ConstTensor<DType> bias = c_.template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> kernel = a_().template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> x_data = b_().template compute_temporaries_for_backprop<use_cache>();
+            ConstTensor<DType> bias = c_().template compute_temporaries_for_backprop<use_cache>();
 
             kernel_data_im2col = kernel_im2col(kernel, bias);
             x_data_im2col = x_im2col(x_data);
@@ -100,10 +98,17 @@ requires(std::is_same_v<typename A::DType, typename B::DType>) class DTernExprOp
         auto [a_grad, c_grad] = kernel_col2im(mat_mul_wrapper<DType, true, false>(
             grad_im2col, x_data_im2col, kernel_data_im2col.get_shape()));
 
-        a_.backward_internal(a_grad);
-        b_.backward_internal(b_grad);
-        c_.backward_internal(c_grad);
+        a_().backward_internal(a_grad);
+        b_().backward_internal(b_grad);
+        c_().backward_internal(c_grad);
     }
+
+    struct Simplify {
+        using Type = DTernExprOp<typename A::Simplify::Type,
+                                 typename B::Simplify::Type,
+                                 typename C::Simplify::Type,
+                                 Operator>;
+    };
 
     // we implement the convolution with the im2col transformation
     Tensor<DType> kernel_im2col(const ConstTensor<DType> &kernel, const ConstTensor<DType> &bias) {
