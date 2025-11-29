@@ -72,7 +72,7 @@ class DTernaryExprCommonData {
                                         Stack<ops::VARIABLE_OP>>;
 
         using tmp4 = Stack<Op::STACK_VAL>;
-        using Type = MergeStacksT<MergeStacksT<MergeStacksT<tmp1, tmp2>, tmp3>, tmp4>;
+        using Type = MergeStacksT<tmp1, tmp2, tmp3, tmp4>;
     };
 
     template <bool recursive>
