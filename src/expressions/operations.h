@@ -115,3 +115,9 @@ class DApIndexer {
     static constexpr size_t STACK_VAL = ops::INDEXER;
     static constexpr bool NEEDS_TEMPORARY_FOR_EVAL = true;
 };
+
+class DApShared {
+  public:
+    static constexpr size_t STACK_VAL = ops::SHARED;
+    static constexpr bool NEEDS_TEMPORARY_FOR_EVAL = true;
+};
