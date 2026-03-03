@@ -5,6 +5,8 @@
  */
 template <typename T>
 struct GetParametersVisitor {
+    const size_t visitor_id;
+    GetParametersVisitor(size_t visitor_id) : visitor_id{visitor_id} {};
     /**
      * Decide whether to end the recursion based on compile time information about the Operator
      */
@@ -27,6 +29,9 @@ struct GetParametersVisitor {
  */
 template <typename T, size_t num_tensors>
 struct GetTensorHandlesVisitor {
+    const size_t visitor_id;
+    GetTensorHandlesVisitor(size_t visitor_id) : visitor_id{visitor_id} {};
+
     template <typename Operator>
     static constexpr bool END_RECURSION = Operator::NEEDS_TEMPORARY_FOR_EVAL;
 
@@ -34,7 +39,7 @@ struct GetTensorHandlesVisitor {
     template <typename Node>
     void operator()(const Node &node) {
         if constexpr (Node::Operator::NEEDS_TEMPORARY_FOR_EVAL) {
-            res.push_back_variable(node.res);
+            res.push_back_variable(node.get_res());
         }
     }
     void operator()(const DExprTensor<T, true> &node) {
@@ -44,5 +49,25 @@ struct GetTensorHandlesVisitor {
     void operator()(const DExprTensor<T, false> &node) {
         node.t_.tensor.wrap_for_broadcasting();
         res.push_back_variable(node.t_.tensor);
+    }
+};
+
+/**
+ * Returns the internal parameters of an expression tree, for which we require a gradient.
+ */
+struct ResetSharedNodesVisitor {
+    const size_t visitor_id;
+    ResetSharedNodesVisitor(size_t visitor_id) : visitor_id{visitor_id} {};
+    /**
+     * Decide whether to end the recursion based on compile time information about the Operator
+     */
+    template <typename Operator>
+    static constexpr bool END_RECURSION = false;
+    size_t res = 0;
+    template <typename Node>
+    void operator()(Node &node) {
+        if constexpr (requires(Node & n) { n.reset_shared_counters(); }) {
+            node.reset_shared_counters();
+        }
     }
 };
