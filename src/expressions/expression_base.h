@@ -87,6 +87,7 @@ class DExpr {
      */
     void backward(auto gradient) {
         static_cast<Expr &>(*this).backward_internal(gradient);
+        // TODO: we can check at compile time if this call is needded
         post_backprop_cleanup();
     }
 

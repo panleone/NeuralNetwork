@@ -53,7 +53,7 @@ struct GetTensorHandlesVisitor {
 };
 
 /**
- * Returns the internal parameters of an expression tree, for which we require a gradient.
+ * Clean up function to reset the internal state of the shared nods
  */
 struct ResetSharedNodesVisitor {
     const size_t visitor_id;
