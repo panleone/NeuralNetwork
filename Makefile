@@ -1,10 +1,11 @@
 CXX=g++
-# CXXFLAGS = -std=c++23 -g -Og -Wall -Wextra -fsanitize=undefined,address -march=native
+# debug flags for tests
+CXXFLAGS_TEST = -std=c++23 -g -Og -Wall -Wextra -fsanitize=undefined,address -march=native
 # flags for performance testing
-CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math -flto -DNDEBUG
+CXXFLAGS = -std=c++23 -Ofast -march=native -ffast-math -flto=auto -DNDEBUG
 LDFLAGS= -lopenblas
-OBJ = src/main.o datasets/mnist1d/load_mnist1d.o
 
+OBJ = src/main.o
 OBJ_TESTS = src/tests/convolution_tests_1d.o src/tests/convolution_tests_2d.o src/tests/nn_tests.o src/tests/test_utils.o src/tests/test_runner.o src/tests/shared_node_tests.o \
 
 HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.h src/interpreter.h src/loss.h src/random.h \
@@ -19,25 +20,32 @@ HEADERS =  src/blas_wrapper.h src/constants.h src/data_loader.h src/debug_utils.
 		   src/expressions/binary_operators/matmul_operator.h src/expressions/binary_operators/matmul_simplifier.h \
 		   src/expressions/ternary_operators/ternary_operator.h src/expressions/ternary_operators/convolution_1d_operator.h src/expressions/ternary_operators/convolution_2d_operator.h \
 		   src/expressions/visitors/compile_time_visitors.h src/expressions/visitors/runtime_visitors.h src/expressions/visitors/runtime_visitor_manager.h
+HEADERS_TESTS = src/tests/convolution_tests_1d.h src/tests/convolution_tests_2d.h src/tests/nn_tests.h src/tests/test_utils.h src/tests/shared_node_tests.h \
 
-HEADERS_TESTS = src/tests/convolution_tests_1d.h src/tests/convolution_tests_2d.h src/tests/nn_tests.h src/tests/test_runner.h src/tests/test_utils.h src/tests/shared_node_tests.h \
-
-SRC = src/main.cpp \
-	  datasets/mnist1d/load_mnist1d.cpp
+SRC = src/main.cpp
 SRC_TESTS = src/tests/convolution_tests_1d.cpp src/tests/convolution_tests_2d.cpp src/tests/nn_tests.cpp src/tests/test_utils.cpp src/tests/test_runner.cpp  src/tests/shared_node_tests.cpp \
 
 BIN = NeuralNetwork
+BIN_TEST = NeuralNetworkTests
 
-$(BIN) : $(OBJ) $(OBJ_TESTS)
-	$(CXX) $(CXXFLAGS)  $(OBJ) $(OBJ_TESTS) $(LDFLAGS) -o $(BIN)
+$(BIN) : $(OBJ)
+	$(CXX) $(CXXFLAGS)  $(OBJ) $(LDFLAGS) -o $(BIN)
+src/%.o : src/%.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ) : $(HEADERS) Makefile
-$(OBJ_TESTS) : $(HEADERS_TESTS) Makefile
+$(BIN_TEST): $(OBJ_TESTS)
+	$(CXX) $(CXXFLAGS_TEST) $(OBJ_TESTS) $(LDFLAGS) -o $(BIN_TEST)
+src/tests/%.o : src/tests/%.cpp $(HEADERS) $(HEADERS_TESTS)
+	$(CXX) $(CXXFLAGS_TEST) -c $< -o $@
 
 .PHONY: clean format
 clean:
 	find . -type f -name '*.o' -exec rm {} +
 	-rm "$(BIN)"
+	-rm "$(BIN_TEST)"
 
 format:
 	clang-format -i $(SRC) $(HEADERS) $(HEADERS_TESTS) $(SRC_TESTS)
+
+test: $(BIN_TEST)
+	./$(BIN_TEST)

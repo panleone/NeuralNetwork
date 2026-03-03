@@ -21,8 +21,6 @@
 
 #include "../datasets/mnist1d/load_mnist1d.h"
 
-#include "tests/test_runner.h"
-
 #include "avx/avx_wrapper.h"
 
 #include "layers/linear_layer.h"
@@ -80,9 +78,6 @@ class MyModel {
 };
 
 int main() {
-    // Run tests
-    run_tests();
-
     using NNType = float;
     auto [train_set, test_set] = loadMNIST1D<NNType>();
 
