@@ -124,6 +124,9 @@ template <typename A>
 requires(HasToDexpr<A>) auto indexer(const A &x, size_t idx) { return indexer(to_dexpr(x), idx); }
 
 template <typename A>
+requires(HasToDexpr<A>) auto shared(const A &x) { return shared(to_dexpr(x)); }
+
+template <typename A>
 requires(HasToDexpr<A>) auto operator-(const A &x) { return -to_dexpr(x); }
 
 template <typename A, typename B>
@@ -195,6 +198,11 @@ auto sqrt(const DExpr<A> &x) {
 template <typename A>
 auto flatten(const DExpr<A> &x) {
     return DUnaryExprOp<A, DApFlatten>(static_cast<const A &>(x));
+}
+
+template <typename A>
+auto shared(const DExpr<A> &x) {
+    return DUnaryExprOp<A, DApShared>(static_cast<const A &>(x));
 }
 
 template <typename A>

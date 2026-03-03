@@ -1,4 +1,5 @@
 #pragma once
+#include "visitors/runtime_visitor_manager.h"
 
 template <typename T>
 class Interpreter;
@@ -6,6 +7,8 @@ class Interpreter;
 template <typename Expr>
 class DExpr {
   public:
+    // External manager for visitor patterns.
+    RuntimeVisitorManager visitor_manager{};
     /**
      * Expression intrinsic type, it can be float or double
      */
@@ -52,6 +55,8 @@ class DExpr {
     // Vector of pairs <Tensor, Gradient>
     auto get_parameters() const;
 
+    void post_backprop_cleanup();
+
     /**
      * simplify, evaluate the expression and return the result as a Tensor
      */
@@ -80,7 +85,11 @@ class DExpr {
     /**
      * Backward step and gradients computation
      */
-    void backward(auto gradient) { static_cast<Expr &>(*this).backward_internal(gradient); }
+    void backward(auto gradient) {
+        static_cast<Expr &>(*this).backward_internal(gradient);
+        // TODO: we can check at compile time if this call is needded
+        post_backprop_cleanup();
+    }
 
   private:
     /**

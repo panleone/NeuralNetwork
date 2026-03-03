@@ -37,7 +37,7 @@ requires(sizeof...(ChildNodes) > 0) &&
             std::apply([&](const auto &...nodes) { (nodes.traverse(v), ...); }, child_nodes);
         }
     }
-
+    ConstTensor<DType> get_res() const { return res; }
     template <typename Visitor>
     static consteval auto traverse() {
         using This = DExprCommonData<Op, ChildNodes...>;
